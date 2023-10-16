@@ -1,0 +1,28 @@
+[package]
+name = "tauri-text-editor"
+version = "0.0.0"
+description = "A Tauri App"
+authors = ["you"]
+license = ""
+repository = ""
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = { version = "1.5", features = [] }
+
+[dependencies]
+tauri = { version = "1.5", features = ["shell-open"] }
+serde = { version = "1.0.189", features = ["derive"] }
+serde_json = "1.0.107"
+specta = { version = "=1.0.5", features = ["export"] }
+tauri-specta = { version = "1.0.2", features = ["javascript", "typescript"] }
+tree-sitter = "0.20.10"
+debug-ignore = "1.0.5"
+rand = "0.8.5"
+
+[features]
+# this feature is used for production builds or when `devPath` points to the filesystem
+# DO NOT REMOVE!!
+custom-protocol = ["tauri/custom-protocol"]

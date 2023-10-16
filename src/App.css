@@ -1,0 +1,23 @@
+#root {
+  display: grid;
+  /* grid-template-areas: 20vw 75v; */
+  grid-template-columns: 25vw 70vw;
+  grid-template-rows: 95vh 5vh;
+  /* gap: 1em; */
+  column-gap: 1em;
+  row-gap: 0;
+  margin: 0;
+  padding: 0 1em;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+#root a {
+  font-size: 10px;
+  /* margin-top: 1em; */
+  grid-column-start: 1;
+  grid-column-end: span 2;
+}

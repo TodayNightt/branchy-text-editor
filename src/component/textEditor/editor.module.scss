@@ -1,0 +1,26 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background-color: #222222;
+  padding: 1em;
+  overflow: hidden;
+  gap: 1em;
+  border-radius: 1em;
+  gap: 0;
+  overflow-y: scroll;
+}
+
+.lines {
+  font-size: 13px;
+  display: flex;
+  gap: 1em;
+  align-items: center;
+  padding: 0;
+  width: 100vw;
+  text-wrap: 1em;
+  p {
+    padding: 0;
+    margin: 0;
+  }
+}
