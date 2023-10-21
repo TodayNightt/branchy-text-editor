@@ -28,10 +28,10 @@ fn get_file_lines(file: String) -> Vec<String> {
 
 use tauri_text_editor::backend_api::file_system::*;
 fn main() {
-    ts::export(
-        collect_types![get_file_lines, open_file],
-        "../src/bindings.ts",
-    );
+    // ts::export(
+    //     collect_types![get_file_lines, open_file],
+    //     "../src/bindings.ts",
+    // );
     let file_menu = Submenu::new(
         "File",
         Menu::with_items([
