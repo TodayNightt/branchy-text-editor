@@ -58,6 +58,7 @@ use std::{
     sync::{Arc, Mutex, RwLock},
 };
 use tree_sitter::{Language, Parser, Tree};
+pub mod backend_api;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize)]
 pub struct OpenedFile {
@@ -107,6 +108,7 @@ pub struct EditorConfig {
     theme: RefCell<Theme>,
     last_section: Option<RefCell<LastSection>>,
 }
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct StateManager {
     pub file_manager: Mutex<FileManager>,
@@ -117,6 +119,21 @@ pub struct StateManager {
 pub struct RequestParse {
     id: u64,
     source_code: String,
+}
+
+pub enum Responses {
+    FileInfo,
+    FileID,
+    FileRead,
+}
+
+pub enum Requests {
+    RequestParse,
+    RequestOpenFile,
+    RequestConfigChange,
+    RequestsSaveFile,
+    RequestCloseFile,
+    Request,
 }
 
 impl Languages {
@@ -190,4 +207,25 @@ impl StateManager {
 
 pub fn read_file(path: &Path) -> Result<Vec<u8>, Error> {
     fs::read(path)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn check_file_insert() {
+        let path = Path::new("build.rs");
+        let mut file_manager = FileManager::default();
+        let file_id = file_manager.load_file(path);
+        let test_file = OpenedFile::new(path).unwrap();
+        if let Ok(id) = file_id {
+            assert_eq!(file_manager._get_file(id), test_file);
+        }
+    }
+
+    #[test]
+    fn check_file_extension() {
+        let file = OpenedFile::new(Path::new("build.rs")).unwrap();
+        assert_eq!(file.language, Some(Languages::Rust));
+    }
 }
