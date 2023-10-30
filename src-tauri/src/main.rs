@@ -1,37 +1,19 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use specta::{collect_types, Type};
-use std::path::Path;
-use tauri::api::{dir::read_dir, dir::DiskEntry, file::read_string};
-use tauri::{CustomMenuItem, Menu, MenuEntry, MenuItem, Submenu};
+
+use specta::collect_types;
+use tauri::{CustomMenuItem, Manager, Menu, MenuEntry, MenuItem, Submenu};
 use tauri_specta::ts;
-use tauri_text_editor::StateManager;
-// use tauri_text_editor::Entry;
+use tauri_text_editor::{backend_api::file_system::*, StateManager};
 
-#[tauri::command]
-// #[specta::specta]
-fn get_current_dir_items() -> Vec<DiskEntry> {
-    read_dir(".", true).unwrap()
-}
-#[tauri::command]
-#[specta::specta]
-fn get_file_lines(file: String) -> Vec<String> {
-    let file_result = read_string(file);
-
-    match file_result {
-        Ok(file) => file.split("\n").map(|a| a.to_string()).collect(),
-        Err(e) => {
-            vec!["File Not Found".to_string(), e.to_string()]
-        }
-    }
-}
-
-use tauri_text_editor::backend_api::file_system::*;
 fn main() {
-    // ts::export(
-    //     collect_types![get_file_lines, open_file],
-    //     "../src/bindings.ts",
-    // );
+    #[cfg(debug_assertions)]
+    ts::export(
+        collect_types![get_file_system_info, open_file, get_file_info],
+        "../src/bindings.ts",
+    )
+    .unwrap();
+
     let file_menu = Submenu::new(
         "File",
         Menu::with_items([
