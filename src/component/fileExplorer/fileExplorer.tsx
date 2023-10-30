@@ -1,73 +1,68 @@
-import { Component, For, JSX, onMount } from "solid-js";
+import { Component, JSX, Setter, createSignal, onMount } from "solid-js";
+import { invoke } from "@tauri-apps/api";
 import { Button, Collapsible } from "@kobalte/core";
-
-import DirectoryHelper from "./component/directoryArrows.tsx";
-
+import { store, setStore } from "../../stateStore.ts";
 // @ts-ignore
 import styles from "./style.module.scss";
-import { invokeChangeDir, invokeOpenFile, store } from "../../stateStore.ts";
-import { DirectoryItem } from "../../bindings.ts";
 
-type EventHandler = JSX.EventHandler<HTMLButtonElement, MouseEvent>;
+interface DirFile {
+  name: string;
+  path: string;
+  children?: Array<DirFile>;
+}
 
-const File: Component<{
-  item: DirectoryItem;
-  handleClick: EventHandler;
-}> = (props) => {
-  return (
-    <Button.Root
-      class={styles["button"]}
-      value={props.item.path}
-      onClick={props.handleClick}
-    >
-      {props.item.name}
-    </Button.Root>
-  );
-};
+const FileExplorer: Component<{ setPath: Setter<string> }> = (props) => {
+  const [currentDirectoryItems, setCurrentDirectoryItems] = createSignal<
+    Array<DirFile>
+  >([], {
+    equals: false,
+  });
 
-const Directory: Component<{
-  item: DirectoryItem;
-  handleClick: EventHandler;
-}> = (props) => {
-  return (
-    <Collapsible.Root class={styles.collapsible}>
-      <Collapsible.Trigger class={styles["collapsible__trigger"]}>
-        {props.item.name}
-      </Collapsible.Trigger>
-      <Collapsible.Content class={styles.container}>
-        <For each={props.item.item}>
-          {(innerItem) =>
-            innerItem.is_file ? (
-              <File item={innerItem} handleClick={props.handleClick} />
-            ) : (
-              <Directory item={innerItem} handleClick={props.handleClick} />
-            )
-          }
-        </For>
-      </Collapsible.Content>
-    </Collapsible.Root>
-  );
-};
+  onMount(async () => {
+    setCurrentDirectoryItems(await invoke("get_current_dir_items"));
+    console.log(currentDirectoryItems());
+  });
 
-const FileExplorer: Component = () => {
-  onMount(() => invokeChangeDir("."));
-
-  const handleClick: EventHandler = (evt) => {
-    invokeOpenFile(evt.currentTarget?.value);
+  const handleClick: JSX.EventHandler<HTMLButtonElement, MouseEvent> = (
+    evt
+  ) => {
+    props.setPath(evt.currentTarget.id);
   };
 
   return (
     <div class={styles.container}>
-      <DirectoryHelper />
-      <For each={store.fileSystem.directory_items} fallback={null}>
-        {(item) =>
-          item.is_file ? (
-            <File item={item} handleClick={handleClick} />
-          ) : (
-            <Directory item={item} handleClick={handleClick} />
-          )
-        }
-      </For>
+      {currentDirectoryItems().map((value) =>
+        value.children ? (
+          <Collapsible.Root class={styles["current-dir"]}>
+            <Collapsible.Trigger class={styles["current-dir"]}>
+              {value.name}
+            </Collapsible.Trigger>
+            <Collapsible.Content>
+              <div class={styles.container}>
+                {value.children.map((value) => (
+                  <Button.Root
+                    class={styles["next-dir"]}
+                    id={value.path}
+                    onClick={handleClick}
+                  >
+                    {value.name}
+                  </Button.Root>
+                ))}
+              </div>
+            </Collapsible.Content>
+          </Collapsible.Root>
+        ) : (
+          <Button.Root
+            id={value.path}
+            class={styles["current-dir"]}
+            onClick={handleClick}
+          >
+            {value.name}
+          </Button.Root>
+        )
+      )}
+      {/* 
+      <p>{state.name}</p> */}
     </div>
   );
 };
