@@ -45,43 +45,45 @@
 //     renderer.lines().collect()
 // }
 
-use debug_ignore::DebugIgnore;
+use path_absolutize::*;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
+use specta::Type;
 use std::{
     cell::RefCell,
     collections::HashMap,
-    ffi::{OsStr, OsString},
+    ffi::OsStr,
     fs,
     io::Error,
-    path::Path,
-    sync::{Arc, Mutex, RwLock},
+    path::{Path, PathBuf},
+    sync::Mutex,
 };
-use tree_sitter::{Language, Parser, Tree};
+// use thiserror::Error;
+use tree_sitter::{Language, Parser};
 pub mod backend_api;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize, Type)]
 pub struct OpenedFile {
-    name: OsString,
+    name: String,
     source_code: Vec<u8>,
-    language: Option<Languages>,
+    language: Option<Lang>,
 }
 
-#[derive(Default)]
-pub struct ParserLoader {
-    pub parsers: HashMap<Languages, RefCell<Parser>>,
-}
+// #[derive(Default)]
+// pub struct ParserLoader {
+//     pub parsers: HashMap<Lang, RefCell<Parser>>,
+// }
 
-impl ParserLoader {
-    pub fn load_parse(&mut self, lang: Languages, language: Language) {
-        let mut parser = Parser::new();
-        let _ = parser.set_language(language);
-        self.parsers.insert(lang, RefCell::new(parser));
-    }
-}
+// impl ParserLoader {
+//     pub fn load_parse(&mut self, lang: Lang, language: Language) {
+//         let mut parser = Parser::new();
+//         let _ = parser.set_language(language);
+//         self.parsers.insert(lang, RefCell::new(parser));
+//     }
+// }
 
-#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Serialize, Deserialize)] // #[derive(Type)]
-pub enum Languages {
+#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Serialize, Deserialize, Type)]
+pub enum Lang {
     Javascript,
     Typescript,
     Rust,
@@ -94,7 +96,7 @@ pub enum Languages {
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct FileManager {
-    files: RefCell<HashMap<u64, RefCell<OpenedFile>>>,
+    files: Box<HashMap<u32, Box<OpenedFile>>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -121,22 +123,7 @@ pub struct RequestParse {
     source_code: String,
 }
 
-pub enum Responses {
-    FileInfo,
-    FileID,
-    FileRead,
-}
-
-pub enum Requests {
-    RequestParse,
-    RequestOpenFile,
-    RequestConfigChange,
-    RequestsSaveFile,
-    RequestCloseFile,
-    Request,
-}
-
-impl Languages {
+impl Lang {
     pub fn check_lang(file_extension: &str) -> Option<Self> {
         match file_extension {
             "java" => Some(Self::Java),
@@ -155,9 +142,14 @@ impl Languages {
 impl OpenedFile {
     pub fn new(path: &Path) -> Result<Self, Error> {
         Ok(Self {
-            name: path.file_name().unwrap_or(OsStr::new("unknown")).into(),
+            name: path
+                .file_name()
+                .unwrap_or(OsStr::new("unknown"))
+                .to_os_string()
+                .into_string()
+                .unwrap(),
             source_code: read_file(path)?.into(),
-            language: Languages::check_lang(
+            language: Lang::check_lang(
                 path.extension()
                     .unwrap_or(OsStr::new("unknown"))
                     .to_str()
@@ -166,42 +158,34 @@ impl OpenedFile {
         })
     }
 
-    // pub fn parse(&self, parser: &ParserLoader) -> Option<Tree> {
-    //     if let Some(language) = &self.language {
-    //         let mut parser = parser.parsers.get(&language).unwrap().borrow_mut();
-    //         return parser.parse(&self.source_code, None);
-    //     }
-    //     None
-    // }
-
     pub fn save(&self) {}
 }
 
 impl FileManager {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            files: Box::default(),
+        }
     }
-    pub fn load_file(&mut self, path: &Path) -> Result<u64, Error> {
-        let mut files_list = self.files.borrow_mut();
+    pub fn load_file(&mut self, path: &Path) -> Result<u32, Error> {
+        let files_list = self.files.as_mut();
         let file = OpenedFile::new(path)?;
-        let id = rand::thread_rng().next_u64();
-        files_list.insert(id, RefCell::new(file));
+        let id = rand::thread_rng().next_u32();
+        files_list.insert(id, Box::new(file));
         Ok(id)
     }
 
-    fn _get_file(&self, id: u64) -> OpenedFile {
-        self.files.borrow().get(&id).unwrap().borrow().clone()
+    fn _get_file(&self, id: &u32) -> OpenedFile {
+        self.files.as_ref().get(id).unwrap().as_ref().clone()
     }
 }
 
 impl StateManager {
     pub fn new() -> Self {
-        Self::default()
-    }
-    pub fn load(&mut self, path: &Path) -> Result<u64, Error> {
-        let mut file_manager = self.file_manager.lock().unwrap();
-        file_manager.load_file(path)
-        // self.file_manager.borrow_mut().load_file(path)
+        Self {
+            file_manager: Mutex::new(FileManager::new()),
+            editor_config: Mutex::new(EditorConfig::default()),
+        }
     }
 }
 
@@ -209,8 +193,77 @@ pub fn read_file(path: &Path) -> Result<Vec<u8>, Error> {
     fs::read(path)
 }
 
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct DirectoryItem {
+    is_file: bool,
+    name: String,
+    path: PathBuf,
+    childrens: Option<Vec<DirectoryItem>>,
+}
+
+impl DirectoryItem {
+    pub fn create_file(name: String, path: PathBuf) -> Self {
+        Self {
+            is_file: true,
+            name,
+            path,
+            childrens: None,
+        }
+    }
+
+    pub fn create_directory(name: String, path: PathBuf, item: Vec<DirectoryItem>) -> Self {
+        Self {
+            is_file: false,
+            name,
+            path,
+            childrens: Some(item),
+        }
+    }
+}
+
+pub fn get_directory_items(dir: &PathBuf, recursion: i32) -> Vec<DirectoryItem> {
+    let mut directory_item: Vec<DirectoryItem> = vec![];
+    let entries = dir.read_dir().unwrap();
+
+    for entry in entries {
+        if let Ok(entry) = entry {
+            if entry.file_type().unwrap().is_file() {
+                directory_item.push(DirectoryItem::create_file(
+                    entry.file_name().into_string().unwrap(),
+                    entry.path().absolutize().unwrap().to_path_buf(),
+                ))
+            } else if entry.file_type().unwrap().is_dir() && recursion > 0 {
+                let recursion = recursion - 1;
+                let item = get_directory_items(&entry.path(), recursion);
+                directory_item.push(DirectoryItem::create_directory(
+                    entry.file_name().into_string().unwrap(),
+                    entry.path().absolutize().unwrap().to_path_buf(),
+                    item,
+                ));
+            }
+        }
+    }
+    directory_item
+}
+
+// pub fn get_all_directory_along_the_path(dir: &PathBuf) -> HashMap<String, Vec<DirectoryItem>> {
+//     let mut directories: HashMap<String, Vec<DirectoryItem>> = HashMap::new();
+//     if let Some(dir) = dir.parent() {
+//         let path_buf = dir.to_path_buf();
+//         let directory_items = get_directory_items(&path_buf, 1);
+//         directories.insert(
+//             path_buf.into_os_string().into_string().unwrap(),
+//             directory_items,
+//         );
+//     }
+//     directories
+// }
+
 #[cfg(test)]
 mod test {
+
+    use crate::backend_api::file_system::get_file_system_info;
+
     use super::*;
     #[test]
     fn check_file_insert() {
@@ -219,13 +272,24 @@ mod test {
         let file_id = file_manager.load_file(path);
         let test_file = OpenedFile::new(path).unwrap();
         if let Ok(id) = file_id {
-            assert_eq!(file_manager._get_file(id), test_file);
+            assert_eq!(file_manager._get_file(&id), test_file);
         }
     }
 
     #[test]
     fn check_file_extension() {
         let file = OpenedFile::new(Path::new("build.rs")).unwrap();
-        assert_eq!(file.language, Some(Languages::Rust));
+        assert_eq!(file.language, Some(Lang::Rust));
+    }
+
+    #[test]
+    fn check_directory_item() {
+        let _items = get_directory_items(&PathBuf::from("."), 2);
+        // dbg!(items);
+    }
+
+    #[test]
+    fn test_path_buf() {
+        dbg!(get_file_system_info(None));
     }
 }

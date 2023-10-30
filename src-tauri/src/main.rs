@@ -24,13 +24,16 @@ fn main() {
     );
 
     tauri::Builder::default()
+        .menu(Menu::with_items([MenuEntry::Submenu(file_menu)]))
         .invoke_handler(tauri::generate_handler![
             open_file,
-            get_file_lines,
-            get_current_dir_items
+            get_file_info,
+            get_file_system_info
         ])
-        .manage(tauri_text_editor::StateManager::new())
-        .menu(Menu::with_items([MenuEntry::Submenu(file_menu)]))
+        .setup(|app| {
+            app.manage(StateManager::new());
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
