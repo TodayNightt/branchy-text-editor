@@ -46,16 +46,24 @@ impl serde::Serialize for CustomError {
         serializer.serialize_str(self.to_string().as_ref())
     }
 }
-
 #[tauri::command]
 #[specta::specta]
 pub fn open_file(state: tauri::State<StateManager>, path: String) -> Result<OpenFile, CustomError> {
     let path_path = Path::new(&path);
     let mut file_manager = state.file_manager.lock().unwrap();
-    let file_id = file_manager.load_file(path_path)?;
-    let file = file_manager._get_file(&file_id);
-    Ok(OpenFile::create(file_id, &file))
+    let file_info = file_manager.load_file(path_path)?;
+    let file = file_manager._get_file(&file_info.0);
+    Ok(OpenFile::create(file_info, &file))
 }
+
+#[tauri::command]
+#[specta::specta]
+pub fn close_file(state: tauri::State<StateManager>, id: u32) -> Result<(), String> {
+    let mut file_maneger = state.file_manager.lock().unwrap();
+    file_maneger.files.as_mut().remove(&id);
+    Ok(())
+}
+
 
 #[tauri::command]
 #[specta::specta]

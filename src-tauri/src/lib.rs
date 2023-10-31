@@ -66,20 +66,21 @@ pub struct OpenedFile {
     name: String,
     source_code: Vec<u8>,
     language: Option<Lang>,
+    path: String,
 }
 
-// #[derive(Default)]
-// pub struct ParserLoader {
-//     pub parsers: HashMap<Lang, RefCell<Parser>>,
-// }
+#[derive(Default)]
+pub struct ParserLoader {
+    pub parsers: HashMap<Lang, RefCell<Parser>>,
+}
 
-// impl ParserLoader {
-//     pub fn load_parse(&mut self, lang: Lang, language: Language) {
-//         let mut parser = Parser::new();
-//         let _ = parser.set_language(language);
-//         self.parsers.insert(lang, RefCell::new(parser));
-//     }
-// }
+impl ParserLoader {
+    pub fn load_parse(&mut self, lang: Lang, language: Language) {
+        let mut parser = Parser::new();
+        let _ = parser.set_language(language);
+        self.parsers.insert(lang, RefCell::new(parser));
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Serialize, Deserialize, Type)]
 pub enum Lang {
@@ -154,6 +155,7 @@ impl OpenedFile {
                     .to_str()
                     .unwrap(),
             ),
+            path: String::from(path.to_str().unwrap()),
         })
     }
 
@@ -166,16 +168,27 @@ impl FileManager {
             files: Box::default(),
         }
     }
-    pub fn load_file(&mut self, path: &Path) -> Result<u32, Error> {
-        let files_list = self.files.as_mut();
+    pub fn load_file(&mut self, path: &Path) -> Result<(u32, bool), Error> {
         let file = OpenedFile::new(path)?;
+        let same_name_exist = self._search_same_name_exist(&file.name);
         let id = rand::thread_rng().next_u32();
+        let files_list = self.files.as_mut();
         files_list.insert(id, Box::new(file));
-        Ok(id)
+        Ok((id, same_name_exist))
     }
 
     fn _get_file(&self, id: &u32) -> OpenedFile {
         self.files.as_ref().get(id).unwrap().as_ref().clone()
+    }
+
+    fn _search_same_name_exist(&self, name: &String) -> bool {
+        let files_list = self.files.as_ref();
+        for file in files_list.values() {
+            if file.name.eq(name) {
+                return true;
+            }
+        }
+        false
     }
 }
 
@@ -268,9 +281,9 @@ mod test {
     fn check_file_insert() {
         let path = Path::new("build.rs");
         let mut file_manager = FileManager::default();
-        let file_id = file_manager.load_file(path);
+        let file_info = file_manager.load_file(path);
         let test_file = OpenedFile::new(path).unwrap();
-        if let Ok(id) = file_id {
+        if let Ok((id, _same_name_exist)) = file_info {
             assert_eq!(file_manager._get_file(&id), test_file);
         }
     }

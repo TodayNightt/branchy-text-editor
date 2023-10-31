@@ -22,14 +22,18 @@ pub struct OpenFile {
     id: u32,
     name: String,
     language: Option<Lang>,
+    same_name_exist: bool,
+    path: String,
 }
 
 impl OpenFile {
-    pub fn create(id: u32, file: &OpenedFile) -> Self {
+    pub fn create(file_info: (u32, bool), file: &OpenedFile) -> Self {
         Self {
-            id,
+            id: file_info.0,
+            same_name_exist: file_info.1,
             name: file.name.to_owned(),
             language: file.language.to_owned(),
+            path: file.path.to_owned(),
         }
     }
 }

@@ -4,12 +4,21 @@
 use specta::collect_types;
 use tauri::{CustomMenuItem, Manager, Menu, MenuEntry, MenuItem, Submenu};
 use tauri_specta::ts;
-use tauri_text_editor::{backend_api::file_system::*, StateManager};
+use tauri_text_editor::{
+    backend_api::{file_data::*, file_system::*},
+    StateManager,
+};
 
 fn main() {
     #[cfg(debug_assertions)]
     ts::export(
-        collect_types![get_file_system_info, open_file, get_file_info],
+        collect_types![
+            get_file_system_info,
+            open_file,
+            get_file_info,
+            get_source_code_if_any,
+            close_file,
+        ],
         "../src/bindings.ts",
     )
     .unwrap();
@@ -28,7 +37,9 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             open_file,
             get_file_info,
-            get_file_system_info
+            get_file_system_info,
+            get_source_code_if_any,
+            close_file,
         ])
         .setup(|app| {
             app.manage(StateManager::new());
