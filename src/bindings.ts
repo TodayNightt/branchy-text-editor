@@ -22,8 +22,16 @@ export function getFileInfo(id: number) {
     return invoke()<OpenedFile | null>("get_file_info", { id })
 }
 
-export type DirectoryItem = { is_file: boolean; name: string; path: string; item: DirectoryItem[] | null }
-export type OpenFile = { id: number; name: string; language: Lang | null }
+export function getSourceCodeIfAny(id: number) {
+    return invoke()<string | null>("get_source_code_if_any", { id })
+}
+
+export function closeFile(id: number) {
+    return invoke()<null>("close_file", { id })
+}
+
+export type OpenedFile = { name: string; source_code: number[]; language: Lang | null; path: string }
+export type DirectoryItem = { is_file: boolean; name: string; path: string; childrens: DirectoryItem[] | null }
+export type OpenFile = { id: number; name: string; language: Lang | null; same_name_exist: boolean; path: string }
 export type Lang = "Javascript" | "Typescript" | "Rust" | "Python" | "Java" | "Ruby" | "Html" | "Css"
 export type FileSystemInfo = { current_directory: string; directory_items: DirectoryItem[] }
-export type OpenedFile = { name: string; source_code: number[]; language: Lang | null }

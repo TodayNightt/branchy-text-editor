@@ -35,7 +35,7 @@ const Directory: Component<{
         {props.item.name}
       </Collapsible.Trigger>
       <Collapsible.Content class={styles.container}>
-        <For each={props.item.item}>
+        <For each={props.item.childrens}>
           {(innerItem) =>
             innerItem.is_file ? (
               <File item={innerItem} handleClick={props.handleClick} />
