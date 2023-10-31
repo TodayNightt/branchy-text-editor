@@ -58,7 +58,6 @@ use std::{
     path::{Path, PathBuf},
     sync::Mutex,
 };
-// use thiserror::Error;
 use tree_sitter::{Language, Parser};
 pub mod backend_api;
 
