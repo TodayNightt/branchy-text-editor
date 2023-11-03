@@ -1,5 +1,5 @@
 import { createStore } from "solid-js/store";
-import { FileSystemInfo, OpenFile, getFileSystemInfo,openFile ,getSourceCodeIfAny, closeFile} from "./bindings";
+import { FileSystemInfo, OpenFile, getFileSystemInfo,openFile ,getSourceCodeIfAny, closeFile,reset, saveFile} from "./bindings";
 
 type Store = {
   fileSystem: FileSystemInfo,
@@ -30,16 +30,21 @@ export const invokeChangeDir = async (dir: string | null) => {
 }
 
 export const invokeOpenFile = async (path: string) => {
-  const exist = store.openedFile.find(item=> item.path == path);
-  if (exist) {
-    setStore("selectedFile", exist.name);
-    return;
-  }
-  const file = await catchIfAny(openFile(path));
+  // const exist = store.openedFile.find(item=> item.path_relative_to_current_dir == path);
+  // if (exist) {
+  //   setStore("selectedFile", exist.name);
+  //   return;
+  // }
+  const file = await catchIfAny(openFile(path,store.fileSystem.current_directory));
   if (file) {
     setStore('openedFile', prev => [...prev, file]);
     setStore("selectedFile", file.name);
   }
+  console.log(store.openedFile)
+}
+
+export const invokeSaveFile =async (id:number , changes: string) => {
+  await catchIfAny(saveFile(id, changes));
 }
 
 export const changeSelected = (value: string) => {
@@ -49,6 +54,11 @@ export const changeSelected = (value: string) => {
 export const invokeCloseFile = async (id: number) => {
   await catchIfAny(closeFile(id));
   setStore("openedFile", prev => prev.filter(item => item.id != id));
+}
+
+export const invokeReset =async () => {
+  await catchIfAny(reset());
+  setStore("openedFile", []);
 }
 
 

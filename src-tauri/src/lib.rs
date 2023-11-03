@@ -58,28 +58,17 @@ use std::{
     path::{Path, PathBuf},
     sync::Mutex,
 };
-use tree_sitter::{Language, Parser};
-pub mod backend_api;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize, Type)]
+use tree_sitter::Tree;
+pub mod backend_api;
+pub mod treesitter_backend;
+
+#[derive(Debug, Clone, Serialize, Type, PartialEq, Eq, PartialOrd, Ord)]
 pub struct OpenedFile {
     name: String,
     source_code: Vec<u8>,
     language: Option<Lang>,
-    path: String,
-}
-
-#[derive(Default)]
-pub struct ParserLoader {
-    pub parsers: HashMap<Lang, RefCell<Parser>>,
-}
-
-impl ParserLoader {
-    pub fn load_parse(&mut self, lang: Lang, language: Language) {
-        let mut parser = Parser::new();
-        let _ = parser.set_language(language);
-        self.parsers.insert(lang, RefCell::new(parser));
-    }
+    path: PathBuf,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Serialize, Deserialize, Type)]
@@ -140,7 +129,8 @@ impl Lang {
 }
 
 impl OpenedFile {
-    pub fn new(path: &Path) -> Result<Self, Error> {
+    pub fn new(path_string: impl Into<String>) -> Result<Self, Error> {
+        let path = PathBuf::from(path_string.into());
         Ok(Self {
             name: path
                 .file_name()
@@ -148,18 +138,20 @@ impl OpenedFile {
                 .to_os_string()
                 .into_string()
                 .unwrap(),
-            source_code: read_file(path)?.into(),
+            source_code: read_file(path.as_path())?.into(),
             language: Lang::check_lang(
                 path.extension()
                     .unwrap_or(OsStr::new("unknown"))
                     .to_str()
                     .unwrap(),
             ),
-            path: String::from(path.to_str().unwrap()),
+            path,
         })
     }
 
-    pub fn save(&self) {}
+    pub fn save(&self, changes: String) {
+        fs::write(&self.path, changes).unwrap();
+    }
 }
 
 impl FileManager {
@@ -168,13 +160,17 @@ impl FileManager {
             files: Box::default(),
         }
     }
-    pub fn load_file(&mut self, path: &Path) -> Result<(u32, bool), Error> {
-        let file = OpenedFile::new(path)?;
+    pub fn load_file(&mut self, path: impl Into<String>) -> Result<(u32, bool), Error> {
+        let file = OpenedFile::new(path.into())?;
         let same_name_exist = self._search_same_name_exist(&file.name);
         let id = rand::thread_rng().next_u32();
         let files_list = self.files.as_mut();
         files_list.insert(id, Box::new(file));
         Ok((id, same_name_exist))
+    }
+
+    fn get_path_from_current_dir(&self) {
+        
     }
 
     fn _get_file(&self, id: &u32) -> OpenedFile {
@@ -189,6 +185,10 @@ impl FileManager {
             }
         }
         false
+    }
+
+    pub fn save_file(&self, id: &u32, changes: String) {
+        self._get_file(id).save(changes);
     }
 }
 
@@ -279,10 +279,10 @@ mod test {
     use super::*;
     #[test]
     fn check_file_insert() {
-        let path = Path::new("build.rs");
+        let path = String::from("build.rs");
         let mut file_manager = FileManager::default();
-        let file_info = file_manager.load_file(path);
-        let test_file = OpenedFile::new(path).unwrap();
+        let file_info = file_manager.load_file(&path);
+        let test_file = OpenedFile::new(&path).unwrap();
         if let Ok((id, _same_name_exist)) = file_info {
             assert_eq!(file_manager._get_file(&id), test_file);
         }
@@ -290,7 +290,7 @@ mod test {
 
     #[test]
     fn check_file_extension() {
-        let file = OpenedFile::new(Path::new("build.rs")).unwrap();
+        let file = OpenedFile::new(String::from("build.rs")).unwrap();
         assert_eq!(file.language, Some(Lang::Rust));
     }
 

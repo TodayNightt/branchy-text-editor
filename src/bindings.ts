@@ -14,12 +14,8 @@ export function getFileSystemInfo(dir: string | null) {
     return invoke()<FileSystemInfo>("get_file_system_info", { dir })
 }
 
-export function openFile(path: string) {
-    return invoke()<OpenFile>("open_file", { path })
-}
-
-export function getFileInfo(id: number) {
-    return invoke()<OpenedFile | null>("get_file_info", { id })
+export function openFile(path: string, currentWorkingDirectory: string) {
+    return invoke()<OpenFile>("open_file", { path,currentWorkingDirectory })
 }
 
 export function getSourceCodeIfAny(id: number) {
@@ -30,8 +26,15 @@ export function closeFile(id: number) {
     return invoke()<null>("close_file", { id })
 }
 
-export type OpenedFile = { name: string; source_code: number[]; language: Lang | null; path: string }
-export type DirectoryItem = { is_file: boolean; name: string; path: string; childrens: DirectoryItem[] | null }
-export type OpenFile = { id: number; name: string; language: Lang | null; same_name_exist: boolean; path: string }
-export type Lang = "Javascript" | "Typescript" | "Rust" | "Python" | "Java" | "Ruby" | "Html" | "Css"
+export function saveFile(id: number, changes: string) {
+    return invoke()<null>("save_file", { id,changes })
+}
+
+export function reset() {
+    return invoke()<null>("reset")
+}
+
 export type FileSystemInfo = { current_directory: string; directory_items: DirectoryItem[] }
+export type Lang = "Javascript" | "Typescript" | "Rust" | "Python" | "Java" | "Ruby" | "Html" | "Css"
+export type OpenFile = { id: number; name: string; language: Lang | null; same_name_exist: boolean; path_relative_to_current_dir: string }
+export type DirectoryItem = { is_file: boolean; name: string; path: string; childrens: DirectoryItem[] | null }

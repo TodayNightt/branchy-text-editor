@@ -13,3 +13,18 @@ pub fn get_source_code_if_any(
         _ => Ok(None),
     }
 }
+
+#[tauri::command]
+#[specta::specta]
+pub fn reset(state: tauri::State<StateManager>) {
+    let mut file_manager = state.file_manager.lock().unwrap();
+    file_manager.files.as_mut().clear();
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn save_file(state: tauri::State<StateManager>, id: u32, changes: String) {
+    let file_manager = state.file_manager.lock().unwrap();
+
+    file_manager.save_file(&id, changes);
+}

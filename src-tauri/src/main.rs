@@ -15,9 +15,10 @@ fn main() {
         collect_types![
             get_file_system_info,
             open_file,
-            get_file_info,
             get_source_code_if_any,
             close_file,
+            save_file,
+            reset
         ],
         "../src/bindings.ts",
     )
@@ -36,10 +37,11 @@ fn main() {
         .menu(Menu::with_items([MenuEntry::Submenu(file_menu)]))
         .invoke_handler(tauri::generate_handler![
             open_file,
-            get_file_info,
             get_file_system_info,
             get_source_code_if_any,
             close_file,
+            save_file,
+            reset
         ])
         .setup(|app| {
             app.manage(StateManager::new());

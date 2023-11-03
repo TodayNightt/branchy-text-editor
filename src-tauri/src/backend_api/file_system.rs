@@ -1,9 +1,7 @@
 use crate::get_directory_items;
-use crate::OpenedFile;
 use crate::StateManager;
 use home::home_dir;
 use path_absolutize::Absolutize;
-use std::path::Path;
 use std::path::PathBuf;
 
 use super::responses::FileSystemInfo;
@@ -49,9 +47,8 @@ impl serde::Serialize for CustomError {
 #[tauri::command]
 #[specta::specta]
 pub fn open_file(state: tauri::State<StateManager>, path: String) -> Result<OpenFile, CustomError> {
-    let path_path = Path::new(&path);
     let mut file_manager = state.file_manager.lock().unwrap();
-    let file_info = file_manager.load_file(path_path)?;
+    let file_info = file_manager.load_file(path)?;
     let file = file_manager._get_file(&file_info.0);
     Ok(OpenFile::create(file_info, &file))
 }
@@ -64,11 +61,10 @@ pub fn close_file(state: tauri::State<StateManager>, id: u32) -> Result<(), Stri
     Ok(())
 }
 
+// #[tauri::command]
+// #[specta::specta]
+// pub fn get_file_info<'a>(state: tauri::State<'a, StateManager<'a>>, id: u32) -> Option<OpenedFile<'a>> {
+//     let file_manager = state.file_manager.lock().unwrap();
 
-#[tauri::command]
-#[specta::specta]
-pub fn get_file_info(state: tauri::State<StateManager>, id: u32) -> Option<OpenedFile> {
-    let file_manager = state.file_manager.lock().unwrap();
-
-    Some(file_manager._get_file(&id))
-}
+//     Some(file_manager._get_file(&id))
+// }
