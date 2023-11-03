@@ -1,39 +1,60 @@
-// import * as commands from "../../bindings.ts";
-import { invoke } from "@tauri-apps/api";
-import { Component, JSX, createEffect, createSignal } from "solid-js";
+import { Component, For, JSX } from "solid-js";
 // @ts-ignore
-import styles from "./editor.module.scss";
+import styles from "./styles.module.scss";
 
-const TextEditor: Component<{ path: string }> = (props) => {
-  const [lines, setLines] = createSignal<Array<string>>([]);
+import {
+  store,
+  changeSelected,
+  invokeCloseFile,
+  invokeReset,
+} from "../../stateStore";
+import { Button, Tabs } from "@kobalte/core";
+import Editor from "./components/editor";
 
-  createEffect(async () => {
-    await invoke("open_file", { path: props.path })
-      .then((res) => console.log(res))
-      .catch((e) => setLines([e.toString()]));
-  }, [props.path]);
+type ButtonMouseEvent = JSX.EventHandler<HTMLButtonElement, MouseEvent>;
 
-  const handleType: JSX.EventHandler<HTMLDivElement, KeyboardEvent> = (evt) => {
-    console.log(evt);
-    const result = evt.target.id.match(/(\d+)/);
-    if (!result) {
-      return;
-    }
-    const index = Number.parseInt(result[0]);
-    const line = evt.currentTarget.innerText;
-    let arr = lines();
-    arr[index] = line;
-    console.log(arr);
-    setLines(arr);
+const TextEditor: Component = () => {
+  const closeFile: ButtonMouseEvent = (evt) => {
+    const id = parseInt(evt.currentTarget?.id);
+    invokeCloseFile(id);
   };
+
+  const handleReset: ButtonMouseEvent = () => {
+    invokeReset();
+  };
+
   return (
-    <div class={styles.container} contenteditable={true}>
-      {lines().map((value, index) => (
-        <div class={styles["lines"]} id={"line" + index} onkeydown={handleType}>
-          <p contentEditable={false}>{index + 1}</p>
-          {value}
-        </div>
-      ))}
+    <div class={styles.container}>
+      <div id={styles["reset-btn-div"]}>
+        <Button.Root onClick={handleReset} id={styles["reset-btn"]}>
+          Reset
+        </Button.Root>
+      </div>
+      <Tabs.Root value={store.selectedFile} onChange={changeSelected}>
+        <Tabs.List>
+          <For each={store.openedFile}>
+            {(file) => (
+              <Tabs.Trigger value={file.name}>
+                <div>
+                  <div>{file.same_name_exist ? file.path : null}</div>
+                  {file.name}
+                  <Button.Root id={file.id.toString()} onClick={closeFile}>
+                    &#9747;
+                  </Button.Root>
+                </div>
+              </Tabs.Trigger>
+            )}
+          </For>
+          <Tabs.Indicator />
+        </Tabs.List>
+        <For each={store.openedFile}>
+          {(file) => (
+            <Tabs.Content value={file.name}>
+              <Editor fileInfo={file} />
+            </Tabs.Content>
+          )}
+        </For>
+      </Tabs.Root>
     </div>
   );
 };

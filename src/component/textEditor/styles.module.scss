@@ -11,16 +11,10 @@
   overflow-y: scroll;
 }
 
-.lines {
-  font-size: 13px;
-  display: flex;
-  gap: 1em;
-  align-items: center;
-  padding: 0;
-  width: 100vw;
-  text-wrap: 1em;
-  p {
-    padding: 0;
-    margin: 0;
-  }
+#reset-btn {
+  float: right;
+}
+
+#reset-btn-div {
+  width: 100%;
 }
