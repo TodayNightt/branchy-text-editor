@@ -33,7 +33,7 @@ impl OpenFile {
             same_name_exist: file_info.1,
             name: file.name.to_owned(),
             language: file.language.to_owned(),
-            path: file.path.to_owned(),
+            path: file.path.to_str().unwrap().to_string(),
         }
     }
 }

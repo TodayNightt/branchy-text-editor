@@ -1,74 +1,34 @@
-// use tree_sitter_cli::highlight::Theme;
-// use tree_sitter_highlight::{Highlight, Highlighter, HtmlRenderer};
-// use tree_sitter_loader::{Config, Loader};
-
-// // Adapter function for interoperating with Tree-sitter's highlight library.
-// //
-// // * `code` - The code snippet to highlight.
-// // * `scope` - The TextMate scope identifying the language of the code snippet.
-// pub fn highlight_adapter(code: &str, scope: &str) -> String {
-//     // The directory to search for parsers
-//     let parser_directory = std::env::current_dir().unwrap().join("parsers");
-
-//     let theme = Theme::default();
-
-//     // The loader is used to load parsers
-//     let loader = {
-//         let mut loader = Loader::new().unwrap();
-//         let config = {
-//             let parser_directories = vec![parser_directory];
-//             Config { parser_directories }
-//         };
-//         loader.find_all_languages(&config).unwrap();
-//         loader.configure_highlights(&theme.highlight_names);
-//         loader
-//     };
-
-//     // Retrieve the highlight config for the given language scope
-//     let config = loader
-//         .language_configuration_for_scope(scope)
-//         .unwrap()
-//         .and_then(|(language, config)| config.highlight_config(language).ok())
-//         .unwrap()
-//         .unwrap();
-
-//     let code = code.as_bytes();
-
-//     // Highlight the code
-//     let mut highlighter = Highlighter::new();
-//     let highlights = highlighter.highlight(config, code, None, |_| None).unwrap();
-
-//     // Render and return the highlighted code as an HTML snippet
-//     let get_style_css = |h: Highlight| theme.styles[h.0].css.as_ref().unwrap().as_bytes();
-//     let mut renderer = HtmlRenderer::new();
-//     renderer.render(highlights, code, &get_style_css).unwrap();
-//     renderer.lines().collect()
-// }
-
+use derivative::Derivative;
 use path_absolutize::*;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::{
-    cell::RefCell,
     collections::HashMap,
     ffi::OsStr,
     fs,
     io::Error,
     path::{Path, PathBuf},
-    sync::Mutex,
+    sync::{Arc, Mutex},
 };
-
 use tree_sitter::Tree;
 pub mod backend_api;
 pub mod treesitter_backend;
 
-#[derive(Debug, Clone, Serialize, Type, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Derivative)]
+#[derivative(Debug, PartialEq, Eq, Hash, PartialOrd, Clone, Ord, Hash)]
 pub struct OpenedFile {
     name: String,
-    source_code: Vec<u8>,
     language: Option<Lang>,
     path: PathBuf,
+    #[derivative(
+        PartialEq = "ignore",
+        Hash = "ignore",
+        PartialOrd = "ignore",
+        Ord = "ignore",
+        Debug = "ignore"
+    )]
+    tree: Arc<Mutex<Option<Tree>>>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Serialize, Deserialize, Type)]
@@ -83,7 +43,7 @@ pub enum Lang {
     Css,
 }
 
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Debug, Default)]
 pub struct FileManager {
     files: Box<HashMap<u32, Box<OpenedFile>>>,
 }
@@ -131,6 +91,12 @@ impl Lang {
 impl OpenedFile {
     pub fn new(path_string: impl Into<String>) -> Result<Self, Error> {
         let path = PathBuf::from(path_string.into());
+        let lang = Lang::check_lang(
+            path.extension()
+                .unwrap_or(OsStr::new("unknown"))
+                .to_str()
+                .unwrap(),
+        );
         Ok(Self {
             name: path
                 .file_name()
@@ -138,14 +104,9 @@ impl OpenedFile {
                 .to_os_string()
                 .into_string()
                 .unwrap(),
-            source_code: read_file(path.as_path())?.into(),
-            language: Lang::check_lang(
-                path.extension()
-                    .unwrap_or(OsStr::new("unknown"))
-                    .to_str()
-                    .unwrap(),
-            ),
+            language: lang,
             path,
+            tree: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -189,6 +150,15 @@ impl FileManager {
 
     pub fn save_file(&self, id: &u32, changes: String) {
         self._get_file(id).save(changes);
+    }
+
+    pub fn read_source_code_in_bytes(&self, id: &u32) -> Result<Vec<u8>, Error> {
+        let mut file = self._get_file(id);
+        let path = &file.path;
+        let source_code = read_file(path)?;
+        file.update_tree(None);
+        file.parse(&source_code);
+        Ok(source_code)
     }
 }
 

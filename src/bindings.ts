@@ -14,8 +14,8 @@ export function getFileSystemInfo(dir: string | null) {
     return invoke()<FileSystemInfo>("get_file_system_info", { dir })
 }
 
-export function openFile(path: string, currentWorkingDirectory: string) {
-    return invoke()<OpenFile>("open_file", { path,currentWorkingDirectory })
+export function openFile(path: string) {
+    return invoke()<OpenFile>("open_file", { path })
 }
 
 export function getSourceCodeIfAny(id: number) {
@@ -30,11 +30,17 @@ export function saveFile(id: number, changes: string) {
     return invoke()<null>("save_file", { id,changes })
 }
 
+export function parseFile(id: number, changes: string, range: ChangesRange | null) {
+    return invoke()<null>("parse_file", { id,changes,range })
+}
+
 export function reset() {
     return invoke()<null>("reset")
 }
 
-export type FileSystemInfo = { current_directory: string; directory_items: DirectoryItem[] }
 export type Lang = "Javascript" | "Typescript" | "Rust" | "Python" | "Java" | "Ruby" | "Html" | "Css"
-export type OpenFile = { id: number; name: string; language: Lang | null; same_name_exist: boolean; path_relative_to_current_dir: string }
+export type CustomPoint = { row: number; column: number }
+export type ChangesRange = { start_byte: number; old_end_byte: number; new_end_byte: number; start_position: CustomPoint; old_end_position: CustomPoint; new_end_position: CustomPoint }
+export type OpenFile = { id: number; name: string; language: Lang | null; same_name_exist: boolean; path: string }
+export type FileSystemInfo = { current_directory: string; directory_items: DirectoryItem[] }
 export type DirectoryItem = { is_file: boolean; name: string; path: string; childrens: DirectoryItem[] | null }

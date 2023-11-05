@@ -18,6 +18,7 @@ fn main() {
             get_source_code_if_any,
             close_file,
             save_file,
+            parse_file,
             reset
         ],
         "../src/bindings.ts",
@@ -41,6 +42,7 @@ fn main() {
             get_source_code_if_any,
             close_file,
             save_file,
+            parse_file,
             reset
         ])
         .setup(|app| {
