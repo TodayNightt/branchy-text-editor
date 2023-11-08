@@ -552,12 +552,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "debug-ignore"
-version = "1.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ffe7ed1d93f4553003e20b629abe9085e1e81b1429520f897f8f8860bc6dfc21"
-
-[[package]]
 name = "deranged"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3021,7 +3015,6 @@ dependencies = [
 name = "tauri_text_editor"
 version = "0.0.0"
 dependencies = [
- "debug-ignore",
  "derivative",
  "home",
  "path-absolutize",
@@ -3037,7 +3030,6 @@ dependencies = [
  "tree-sitter",
  "tree-sitter-javascript",
  "tree-sitter-rust",
- "tree-sitter-traversal",
 ]
 
 [[package]]
@@ -3321,15 +3313,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0832309b0b2b6d33760ce5c0e818cb47e1d72b468516bfe4134408926fa7594"
 dependencies = [
  "cc",
- "tree-sitter",
-]
-
-[[package]]
-name = "tree-sitter-traversal"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df8a158225e4a4d8505f071340bba9edd109b23f01b70540dccb7c799868f307"
-dependencies = [
  "tree-sitter",
 ]
 
