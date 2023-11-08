@@ -49,6 +49,14 @@ export function setHighlights(id: number, rangedSourceCode: string) {
   return invoke()<number[]>("set_highlights", { id, rangedSourceCode });
 }
 
+export function getCurrentLanguageTheme() {
+  return invoke()<LanguageTheme>("get_current_language_theme");
+}
+
+export function getEditorConfig() {
+  return invoke()<[LanguageTheme, EditorTheme]>("get_editor_config");
+}
+
 export type CustomPoint = { row: number; column: number };
 export type ChangesRange = {
   start_byte: number;
@@ -74,6 +82,20 @@ export type Lang =
   | "Html"
   | "Css"
   | "Json";
+export type Token = { token: string; foreground: string };
+export type LanguageTheme = {
+  default: Theme;
+  javascript: Theme | null;
+  rust: Theme | null;
+  java: Theme | null;
+  html: Theme | null;
+  css: Theme | null;
+  python: Theme | null;
+  ruby: Theme | null;
+};
+
+export type EditorTheme = { background: string };
+
 export type OpenFile = {
   id: number;
   name: string;
@@ -85,3 +107,4 @@ export type FileSystemInfo = {
   current_directory: string;
   directory_items: DirectoryItem[];
 };
+export type Theme = { rules: Token[] };
