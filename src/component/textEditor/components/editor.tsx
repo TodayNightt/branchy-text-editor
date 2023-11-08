@@ -99,6 +99,7 @@ const Editor: Component<{ fileInfo: OpenFile }> = (props) => {
         language: langId,
         automaticLayout: true,
         theme: "custom",
+        "semanticHighlighting.enabled": true,
       });
     }
 
