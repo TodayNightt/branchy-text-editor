@@ -57,6 +57,10 @@ export function getEditorConfig() {
   return invoke()<[LanguageTheme, EditorTheme]>("get_editor_config");
 }
 
+export function getTokensLegend(lang: Lang | null) {
+  return invoke()<SemanticLegend | null>("get_tokens_legend", { lang });
+}
+
 export type CustomPoint = { row: number; column: number };
 export type ChangesRange = {
   start_byte: number;
@@ -71,6 +75,11 @@ export type DirectoryItem = {
   name: string;
   path: string;
   childrens: DirectoryItem[] | null;
+};
+
+export type SemanticLegend = {
+  _token_types: string[];
+  _token_modifier: string[];
 };
 export type Lang =
   | "Javascript"

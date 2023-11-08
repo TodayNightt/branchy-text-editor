@@ -57,9 +57,7 @@ pub fn open_file(state: tauri::State<StateManager>, path: String) -> Result<Open
     let binding = file_manager
         ._get_file(&file_info.0)
         .map_err(|err| CustomError::GetFileError { message: err })?;
-    let file = binding
-        .lock()
-        .unwrap();
+    let file = binding.lock().unwrap();
     Ok(OpenFile::create(file_info, &file))
 }
 

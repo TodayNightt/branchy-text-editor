@@ -1,7 +1,9 @@
 import { Component, createSignal, onMount } from "solid-js";
 import {
   invokeGetSourceCode,
+  invokeGetTokensLegend,
   invokeHandleFileChanges,
+  invokeHighlights,
   invokeSaveFile,
 } from "../../../backendApi/invocation";
 
@@ -26,7 +28,7 @@ const Editor: Component<{ fileInfo: OpenFile }> = (props) => {
 
   const handleKey = async (
     action: Action,
-    model?: monaco.editor.ITextModel
+    _model?: monaco.editor.ITextModel
   ) => {
     switch (action) {
       case Action.Save:
@@ -84,12 +86,12 @@ const Editor: Component<{ fileInfo: OpenFile }> = (props) => {
 
     //Get the default value which the source file have
     const defaultValue = await invokeGetSourceCode(id);
-    
+
     const langId = "custom-" + lang;
     monaco.languages.register({
       id: langId,
     });
-    
+
     // Create a new instance of the editor
     if (!editor) {
       editor = monaco.editor.create(editorEl, {
@@ -99,7 +101,7 @@ const Editor: Component<{ fileInfo: OpenFile }> = (props) => {
         theme: "custom",
       });
     }
-    
+
     //Create an Action when pressing ctrl+s to save
     editor.addAction({
       id: "save",
@@ -110,11 +112,45 @@ const Editor: Component<{ fileInfo: OpenFile }> = (props) => {
         editor: monaco.editor.ICodeEditor,
         //@ts-ignore
         ...args: any[]
-        ): void | Promise<void> {
-          handleKey(Action.Save);
-        },
-      });
-      
+      ): void | Promise<void> {
+        handleKey(Action.Save);
+      },
+    });
+
+    //Create A SemanticTokenProvider
+    const legend = await invokeGetTokensLegend(language)!;
+    monaco.languages.registerDocumentRangeSemanticTokensProvider(langId, {
+      getLegend() {
+        return {
+          tokenTypes: legend!._token_types,
+          tokenModifiers: [""],
+        };
+      },
+      //@ts-ignore
+      provideDocumentRangeSemanticTokens: async function (
+        model,
+        range,
+        _token
+      ) {
+        const rangedSourceCode = model.getValueInRange(range);
+
+        const data = await invokeHighlights(id, rangedSourceCode);
+
+        for (let i = 3; i < data.length; i += 5) {
+          console.log(
+            `(${data[i - 3]},${data[i - 2]}) length: ${data[i - 1]} ${
+              this.getLegend().tokenTypes[data[i]]
+            }`
+          );
+        }
+
+        return {
+          data: new Uint32Array(data),
+          resultId: null,
+        };
+      },
+    });
+
     //Initialize the currentEndPosition for the tree-sitter parsing
     const range = editor.getModel()?.getFullModelRange();
     setCurrentEndPosition({

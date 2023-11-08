@@ -51,3 +51,20 @@ pub fn handle_file_changes(
     file.parse();
     Ok(())
 }
+
+#[tauri::command]
+#[specta::specta]
+pub fn set_highlights(
+    state: tauri::State<StateManager>,
+    id: u32,
+    ranged_source_code: String,
+) -> Result<Vec<u32>, String> {
+    let file_manager = state.file_manager.lock().unwrap();
+
+    file_manager
+        ._get_file(&id)?
+        .lock()
+        .unwrap()
+        .highlight(ranged_source_code.into_bytes())
+        .map_err(|_err| "Error getting a query".to_string())
+}

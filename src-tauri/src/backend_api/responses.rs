@@ -37,3 +37,18 @@ impl OpenFile {
         }
     }
 }
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct SemanticLegend {
+    _token_types: Vec<String>,
+    _token_modifier: Vec<String>,
+}
+
+impl SemanticLegend {
+    pub fn create(name: Vec<String>) -> Self {
+        Self {
+            _token_types: name.to_owned(),
+            _token_modifier: vec![],
+        }
+    }
+}

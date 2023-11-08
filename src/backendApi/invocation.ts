@@ -3,6 +3,10 @@ import {
   handleFileChanges,
   saveFile,
   getSourceCodeIfAny,
+  Lang,
+  setHighlights,
+  SemanticLegend,
+  getTokensLegend,
 } from "./bindings";
 
 //https://gist.github.com/karlhorky/3593d8cd9779cf9313f9852c59260642
@@ -33,4 +37,19 @@ export const invokeGetSourceCode = async (id: number): Promise<string> => {
   return "";
 };
 
+export const invokeGetTokensLegend = async (
+  lang: Lang
+): Promise<SemanticLegend | null> => {
+  const legend = await catchIfAny(getTokensLegend(lang));
+  if (legend) return legend;
+  return null;
+};
 
+export const invokeHighlights = async (
+  id: number,
+  ranged_source_code: string
+): Promise<number[]> => {
+  const data = await catchIfAny(setHighlights(id, ranged_source_code));
+  if (data) return data;
+  return [];
+};

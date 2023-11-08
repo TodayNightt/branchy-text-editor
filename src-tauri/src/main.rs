@@ -2,12 +2,14 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use specta::collect_types;
-use tauri::{CustomMenuItem, Manager, Menu, MenuEntry, MenuItem, Submenu};
+use tauri::Manager;
 use tauri_specta::ts;
 use tauri_text_editor::{
-    backend_api::{file_data::*, file_system::*},
+    backend_api::{editor_info::*, file_data::*, file_system::*},
     StateManager,
 };
+
+use std::path::PathBuf;
 
 fn main() {
     #[cfg(debug_assertions)]
@@ -18,35 +20,35 @@ fn main() {
             get_source_code_if_any,
             close_file,
             save_file,
-            parse_file,
-            reset
+            handle_file_changes,
+            reset,
+            get_current_language_theme,
+            get_editor_config,
+            get_tokens_legend,
+            set_highlights
         ],
-        "../src/bindings.ts",
+        "../src/backendApi/bindings.ts",
     )
     .unwrap();
 
-    let file_menu = Submenu::new(
-        "File",
-        Menu::with_items([
-            MenuItem::CloseWindow.into(),
-            CustomMenuItem::new("Reload", "Reload").into(),
-            CustomMenuItem::new("Open", "Open").into(),
-        ]),
-    );
-
     tauri::Builder::default()
-        .menu(Menu::with_items([MenuEntry::Submenu(file_menu)]))
         .invoke_handler(tauri::generate_handler![
             open_file,
             get_file_system_info,
             get_source_code_if_any,
             close_file,
             save_file,
-            parse_file,
-            reset
+            handle_file_changes,
+            reset,
+            get_current_language_theme,
+            get_editor_config,
+            get_tokens_legend,
+            set_highlights
         ])
         .setup(|app| {
             app.manage(StateManager::new());
+            let app_handle = app.handle();
+
             Ok(())
         })
         .run(tauri::generate_context!())

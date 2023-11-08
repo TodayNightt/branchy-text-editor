@@ -6,15 +6,23 @@ import {
   openFile,
   closeFile,
   reset,
+  getEditorConfig,
+  Theme,
+  LanguageTheme,
+  EditorTheme,
 } from "./bindings";
 import { catchIfAny } from "./invocation";
 
-
+type EditorConfig = {
+  editorTheme: EditorTheme;
+  languageTheme: LanguageTheme;
+};
 
 type Store = {
   fileSystem: FileSystemInfo;
   openedFile: Array<OpenFile>;
   selectedFile: string;
+  editorConfig?: EditorConfig;
 };
 
 const [store, setStore] = createStore<Store>({
@@ -24,6 +32,7 @@ const [store, setStore] = createStore<Store>({
   },
   openedFile: [],
   selectedFile: "",
+  editorConfig: undefined,
 });
 
 export const invokeChangeDir = async (dir: string | null) => {
@@ -60,5 +69,21 @@ export const invokeReset = async () => {
   setStore("openedFile", []);
 };
 
+export const invokeGetEditorConfig = async () => {
+  let editorConfig = await catchIfAny(getEditorConfig());
+  let languageTheme = editorConfig?.[0];
+  let editorTheme = editorConfig?.[1];
+  setStore("editorConfig", { editorTheme, languageTheme });
+};
+
+export const getLanguageThemeIfAnyElseDefault = (language: string): Theme => {
+  const languageTheme: LanguageTheme = store.editorConfig?.languageTheme!;
+  // @ts-ignore
+  if (languageTheme[language]) {
+    // @ts-ignore
+    return languageTheme[language];
+  }
+  return languageTheme.default;
+};
 
 export { store };
