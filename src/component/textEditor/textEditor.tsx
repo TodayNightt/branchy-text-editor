@@ -8,7 +8,7 @@ import {
   changeSelected,
   invokeCloseFile,
   invokeReset,
-} from "../../stateStore";
+} from "../../backendApi/stateStore";
 import { Button, Tabs } from "@kobalte/core";
 import Editor from "./components/editor";
 
