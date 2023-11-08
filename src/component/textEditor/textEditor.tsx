@@ -1,6 +1,7 @@
 import { Component, For, JSX } from "solid-js";
 // @ts-ignore
 import styles from "./styles.module.scss";
+import "./userWorker";
 
 import {
   store,
