@@ -61,7 +61,7 @@ impl OpenedFile {
             }
         }
     }
-    pub fn parse(&mut self, source_code: &Vec<u8>) {
+    pub fn parse(&mut self) {
         let mut old_tree = self.tree.lock().unwrap();
         let mut parser = Parser::new();
 
@@ -69,7 +69,7 @@ impl OpenedFile {
         let _ = parser.set_language(get_tree_sitter_language(&self.language.clone().unwrap()));
 
         // parse the source_code
-        let new_tree = parser.parse(source_code, old_tree.as_ref());
+        let new_tree = parser.parse(&self.source_code, old_tree.as_ref());
 
         // if let Some(tree) = old_tree.as_ref() {
         //     println!("Old tree{}", tree.root_node().to_sexp())

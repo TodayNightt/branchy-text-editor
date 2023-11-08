@@ -8,7 +8,9 @@ pub fn get_source_code_if_any(
 ) -> Result<Option<String>, String> {
     let file_manager = state.file_manager.lock().unwrap();
     let source_code = file_manager.read_source_code_in_bytes(&id).unwrap();
-
+    let file_mutex = file_manager._get_file(&id)?;
+    let mut file = file_mutex.lock().unwrap();
+    file.update_source_code(&source_code);
     match source_code.len() {
         s if s > 0 => Ok(Some(String::from_utf8(source_code).unwrap())),
         _ => Ok(None),
@@ -24,23 +26,28 @@ pub fn reset(state: tauri::State<StateManager>) {
 
 #[tauri::command]
 #[specta::specta]
-pub fn save_file(state: tauri::State<StateManager>, id: u32, changes: String) {
+pub fn save_file(state: tauri::State<StateManager>, id: u32) -> Result<(), String> {
     let file_manager = state.file_manager.lock().unwrap();
-
-    file_manager.save_file(&id, changes);
+    file_manager
+        .save_file(&id)
+        .map_err(|_err| "File cannot be saved".to_string())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn parse_file(
+pub fn handle_file_changes(
     state: tauri::State<StateManager>,
     id: u32,
-    changes: String,
+    source_code: String,
     range: Option<ChangesRange>,
 ) -> Result<(), String> {
     let file_manager = state.file_manager.lock().unwrap();
-    let mut file = file_manager._get_file(&id);
+    let file_mutex = file_manager
+        ._get_file(&id)
+        .map_err(|err| format!("{} handleChange", err))?;
+    let mut file = file_mutex.lock().unwrap();
+    file.update_source_code(source_code.as_bytes().to_vec().as_ref());
     file.update_tree(range);
-    file.parse(changes.as_bytes().to_vec().as_ref());
+    file.parse();
     Ok(())
 }

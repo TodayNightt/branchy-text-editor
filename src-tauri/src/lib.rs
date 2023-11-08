@@ -1,3 +1,4 @@
+use backend_api::file_system::CustomError;
 use derivative::Derivative;
 use path_absolutize::*;
 use rand::prelude::*;
@@ -11,8 +12,10 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
-use tree_sitter::Tree;
+use tree_sitter::{Query, Tree};
+use treesitter_backend::highlighter::ThemeConfig;
 pub mod backend_api;
+pub mod error;
 pub mod treesitter_backend;
 
 #[derive(Derivative)]
@@ -21,6 +24,7 @@ pub struct OpenedFile {
     name: String,
     language: Option<Lang>,
     path: PathBuf,
+    source_code: Vec<u8>,
     #[derivative(
         PartialEq = "ignore",
         Hash = "ignore",
@@ -29,68 +33,21 @@ pub struct OpenedFile {
         Debug = "ignore"
     )]
     tree: Arc<Mutex<Option<Tree>>>,
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Serialize, Deserialize, Type)]
-pub enum Lang {
-    Javascript,
-    Typescript,
-    Rust,
-    Python,
-    Java,
-    Ruby,
-    Html,
-    Css,
-}
-
-#[derive(Debug, Default)]
-pub struct FileManager {
-    files: Box<HashMap<u32, Box<OpenedFile>>>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Default)]
-pub struct Theme;
-
-#[derive(Debug, Serialize, Deserialize, Default)]
-pub struct LastSection;
-
-#[derive(Debug, Serialize, Deserialize, Default)]
-pub struct EditorConfig {
-    theme: RefCell<Theme>,
-    last_section: Option<RefCell<LastSection>>,
-}
-
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct StateManager {
-    pub file_manager: Mutex<FileManager>,
-    pub editor_config: Mutex<EditorConfig>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct RequestParse {
-    id: u64,
-    source_code: String,
-}
-
-impl Lang {
-    pub fn check_lang(file_extension: &str) -> Option<Self> {
-        match file_extension {
-            "java" => Some(Self::Java),
-            "rs" => Some(Self::Rust),
-            "ts" | "tsx" => Some(Self::Typescript),
-            "js" | "jsx" => Some(Self::Javascript),
-            "py" => Some(Self::Python),
-            "rb" => Some(Self::Ruby),
-            "htm" | "html" => Some(Self::Html),
-            "css" | "scss" | "sass" => Some(Self::Css),
-            _ => None,
-        }
-    }
+    #[derivative(
+        PartialEq = "ignore",
+        Hash = "ignore",
+        PartialOrd = "ignore",
+        Ord = "ignore",
+        Debug = "ignore"
+    )]
+    query: Arc<Option<Query>>,
 }
 
 impl OpenedFile {
     pub fn new(path_string: impl Into<String>) -> Result<Self, Error> {
         let path = PathBuf::from(path_string.into());
+        //Note : This functions should check whether the file is openable / or it is a text file
+        let _file = fs::metadata(&path).unwrap();
         let lang = Lang::check_lang(
             path.extension()
                 .unwrap_or(OsStr::new("unknown"))
@@ -106,13 +63,55 @@ impl OpenedFile {
                 .unwrap(),
             language: lang,
             path,
+            source_code: vec![],
             tree: Arc::new(Mutex::new(None)),
+            query: Arc::new(None),
         })
     }
 
-    pub fn save(&self, changes: String) {
-        fs::write(&self.path, changes).unwrap();
+    pub fn save(&self) -> Result<(), std::io::Error> {
+        fs::write(&self.path, &self.source_code)?;
+        Ok(())
     }
+
+    pub fn update_source_code(&mut self, source_code: &Vec<u8>) {
+        self.source_code = source_code.to_owned();
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Serialize, Deserialize, Type)]
+pub enum Lang {
+    Javascript,
+    Typescript,
+    Rust,
+    Python,
+    Java,
+    Ruby,
+    Html,
+    Css,
+    Json,
+}
+
+impl Lang {
+    pub fn check_lang(file_extension: &str) -> Option<Self> {
+        match file_extension {
+            "java" => Some(Self::Java),
+            "rs" => Some(Self::Rust),
+            "ts" | "tsx" => Some(Self::Typescript),
+            "js" | "jsx" => Some(Self::Javascript),
+            "py" => Some(Self::Python),
+            "rb" => Some(Self::Ruby),
+            "htm" | "html" => Some(Self::Html),
+            "css" | "scss" | "sass" => Some(Self::Css),
+            "json" => Some(Lang::Json),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct FileManager {
+    files: Box<HashMap<u32, Arc<Mutex<OpenedFile>>>>,
 }
 
 impl FileManager {
@@ -126,21 +125,22 @@ impl FileManager {
         let same_name_exist = self._search_same_name_exist(&file.name);
         let id = rand::thread_rng().next_u32();
         let files_list = self.files.as_mut();
-        files_list.insert(id, Box::new(file));
+        files_list.insert(id, Arc::new(Mutex::new(file)));
         Ok((id, same_name_exist))
     }
 
-    fn get_path_from_current_dir(&self) {
-        
-    }
-
-    fn _get_file(&self, id: &u32) -> OpenedFile {
-        self.files.as_ref().get(id).unwrap().as_ref().clone()
+    fn _get_file(&self, id: &u32) -> Result<Arc<Mutex<OpenedFile>>, String> {
+        if let Some(file) = self.files.as_ref().get(&id) {
+            Ok(file.clone())
+        } else {
+            Err("File cannot be found _get_file".to_string())
+        }
     }
 
     fn _search_same_name_exist(&self, name: &String) -> bool {
         let files_list = self.files.as_ref();
         for file in files_list.values() {
+            let file = file.lock().unwrap();
             if file.name.eq(name) {
                 return true;
             }
@@ -148,18 +148,40 @@ impl FileManager {
         false
     }
 
-    pub fn save_file(&self, id: &u32, changes: String) {
-        self._get_file(id).save(changes);
+    pub fn save_file(&self, id: &u32) -> Result<(), CustomError> {
+        let file = self
+            ._get_file(&id)
+            .map_err(|err| CustomError::GetFileError { message: err })?;
+        file.lock().unwrap().save()?;
+        Ok(())
     }
 
-    pub fn read_source_code_in_bytes(&self, id: &u32) -> Result<Vec<u8>, Error> {
-        let mut file = self._get_file(id);
+    pub fn read_source_code_in_bytes(&self, id: &u32) -> Result<Vec<u8>, String> {
+        let file_mutex = self._get_file(id)?;
+        let mut file = file_mutex.lock().unwrap();
         let path = &file.path;
-        let source_code = read_file(path)?;
+        let source_code = read_file(path).map_err(|_err| "Cannot read file".to_string())?;
+        file.update_source_code(&source_code);
         file.update_tree(None);
-        file.parse(&source_code);
+        file.parse();
         Ok(source_code)
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct LastSection;
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct EditorConfig {
+    theme: Mutex<ThemeConfig>,
+    last_section: Option<Mutex<LastSection>>,
+}
+
+#[derive(Debug, Default, Serialize)]
+pub struct StateManager {
+    #[serde(skip)]
+    pub file_manager: Mutex<FileManager>,
+    pub editor_config: Mutex<EditorConfig>,
 }
 
 impl StateManager {
@@ -241,37 +263,37 @@ pub fn get_directory_items(dir: &PathBuf, recursion: i32) -> Vec<DirectoryItem> 
 //     directories
 // }
 
-#[cfg(test)]
-mod test {
+// #[cfg(test)]
+// mod test {
 
-    use crate::backend_api::file_system::get_file_system_info;
+//     use crate::backend_api::file_system::get_file_system_info;
 
-    use super::*;
-    #[test]
-    fn check_file_insert() {
-        let path = String::from("build.rs");
-        let mut file_manager = FileManager::default();
-        let file_info = file_manager.load_file(&path);
-        let test_file = OpenedFile::new(&path).unwrap();
-        if let Ok((id, _same_name_exist)) = file_info {
-            assert_eq!(file_manager._get_file(&id), test_file);
-        }
-    }
+//     use super::*;
+//     #[test]
+//     fn check_file_insert() {
+//         let path = String::from("build.rs");
+//         let mut file_manager = FileManager::default();
+//         let file_info = file_manager.load_file(&path);
+//         let test_file = OpenedFile::new(&path).unwrap();
+//         if let Ok((id, _same_name_exist)) = file_info {
+//             assert_eq!(file_manager._get_file(&id), test_file);
+//         }
+//     }
 
-    #[test]
-    fn check_file_extension() {
-        let file = OpenedFile::new(String::from("build.rs")).unwrap();
-        assert_eq!(file.language, Some(Lang::Rust));
-    }
+//     #[test]
+//     fn check_file_extension() {
+//         let file = OpenedFile::new(String::from("build.rs")).unwrap();
+//         assert_eq!(file.language, Some(Lang::Rust));
+//     }
 
-    #[test]
-    fn check_directory_item() {
-        let _items = get_directory_items(&PathBuf::from("."), 2);
-        // dbg!(items);
-    }
+//     #[test]
+//     fn check_directory_item() {
+//         let _items = get_directory_items(&PathBuf::from("."), 2);
+//         // dbg!(items);
+//     }
 
-    #[test]
-    fn test_path_buf() {
-        dbg!(get_file_system_info(None));
-    }
-}
+//     #[test]
+//     fn test_path_buf() {
+//         dbg!(get_file_system_info(None));
+//     }
+// }

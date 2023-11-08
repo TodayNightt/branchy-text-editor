@@ -1,3 +1,4 @@
+use crate::error;
 use crate::get_directory_items;
 use crate::StateManager;
 use home::home_dir;
@@ -33,8 +34,12 @@ pub fn get_file_system_info(dir: Option<String>) -> FileSystemInfo {
 //        will need to implement more formal Error
 use thiserror::Error;
 #[derive(Error, Debug)]
-#[error("couldn't open the file")]
-pub struct CustomError(#[from] std::io::Error);
+pub enum CustomError {
+    #[error("couldn't open the file")]
+    LoadFileError(#[from] std::io::Error),
+    #[error("{}", message)]
+    GetFileError { message: String },
+}
 
 impl serde::Serialize for CustomError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -49,7 +54,12 @@ impl serde::Serialize for CustomError {
 pub fn open_file(state: tauri::State<StateManager>, path: String) -> Result<OpenFile, CustomError> {
     let mut file_manager = state.file_manager.lock().unwrap();
     let file_info = file_manager.load_file(path)?;
-    let file = file_manager._get_file(&file_info.0);
+    let binding = file_manager
+        ._get_file(&file_info.0)
+        .map_err(|err| CustomError::GetFileError { message: err })?;
+    let file = binding
+        .lock()
+        .unwrap();
     Ok(OpenFile::create(file_info, &file))
 }
 
@@ -60,11 +70,3 @@ pub fn close_file(state: tauri::State<StateManager>, id: u32) -> Result<(), Stri
     file_maneger.files.as_mut().remove(&id);
     Ok(())
 }
-
-// #[tauri::command]
-// #[specta::specta]
-// pub fn get_file_info<'a>(state: tauri::State<'a, StateManager<'a>>, id: u32) -> Option<OpenedFile<'a>> {
-//     let file_manager = state.file_manager.lock().unwrap();
-
-//     Some(file_manager._get_file(&id))
-// }
