@@ -7,10 +7,16 @@ pub fn get_source_code_if_any(
     id: u32,
 ) -> Result<Option<String>, String> {
     let file_manager = state.file_manager.lock().unwrap();
+    let mut parser_helper = state.parser_helper.lock().unwrap();
     let source_code = file_manager.read_source_code_in_bytes(&id).unwrap();
     let file_mutex = file_manager._get_file(&id)?;
-    let mut file = file_mutex.lock().unwrap();
-    file.update_source_code(&source_code);
+    parser_helper.append_tree(&id, file_mutex.clone());
+    parser_helper.parse(
+        &id,
+        &file_manager.get_file_language(&id).unwrap(),
+        &source_code,
+    );
+
     match source_code.len() {
         s if s > 0 => Ok(Some(String::from_utf8(source_code).unwrap())),
         _ => Ok(None),
@@ -42,13 +48,16 @@ pub fn handle_file_changes(
     range: Option<ChangesRange>,
 ) -> Result<(), String> {
     let file_manager = state.file_manager.lock().unwrap();
-    let file_mutex = file_manager
-        ._get_file(&id)
-        .map_err(|err| format!("{} handleChange", err))?;
-    let mut file = file_mutex.lock().unwrap();
-    file.update_source_code(source_code.as_bytes().to_vec().as_ref());
-    file.update_tree(range);
-    file.parse();
+    let mut parser_helper = state.parser_helper.lock().unwrap();
+    let source_code_in_bytes = source_code.as_bytes().to_vec();
+    file_manager.update_source_code_for_file(&id, &source_code_in_bytes);
+    parser_helper.update_tree(&id, range);
+    parser_helper.parse(
+        &id,
+        &file_manager.get_file_language(&id).unwrap(),
+        &source_code_in_bytes,
+    );
+
     Ok(())
 }
 
@@ -60,11 +69,14 @@ pub fn set_highlights(
     ranged_source_code: String,
 ) -> Result<Vec<u32>, String> {
     let file_manager = state.file_manager.lock().unwrap();
-
+    let parser_helper = state.parser_helper.lock().unwrap();
     file_manager
         ._get_file(&id)?
         .lock()
         .unwrap()
-        .highlight(ranged_source_code.into_bytes())
+        .highlight(
+            &parser_helper.get_tree(&id),
+            ranged_source_code.into_bytes(),
+        )
         .map_err(|_err| "Error getting a query".to_string())
 }

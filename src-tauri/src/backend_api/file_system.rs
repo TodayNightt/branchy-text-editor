@@ -1,4 +1,3 @@
-use crate::error;
 use crate::get_directory_items;
 use crate::StateManager;
 use home::home_dir;

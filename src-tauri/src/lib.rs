@@ -13,7 +13,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 use tree_sitter::{Query, Tree};
-use treesitter_backend::highlighter::ThemeConfig;
+use treesitter_backend::{highlighter::ThemeConfig, parser::ParserHelper};
 pub mod backend_api;
 pub mod error;
 pub mod treesitter_backend;
@@ -184,8 +184,6 @@ impl FileManager {
         let path = &file.path;
         let source_code = read_file(path).map_err(|_err| "Cannot read file".to_string())?;
         file.update_source_code(&source_code);
-        file.update_tree(None);
-        file.parse();
         Ok(source_code)
     }
 }
@@ -199,11 +197,13 @@ pub struct EditorConfig {
     last_section: Option<Mutex<LastSection>>,
 }
 
-#[derive(Debug, Default, Serialize)]
+#[derive(Default, Serialize)]
 pub struct StateManager {
     #[serde(skip)]
     pub file_manager: Mutex<FileManager>,
     pub editor_config: Mutex<EditorConfig>,
+    #[serde(skip)]
+    parser_helper: Mutex<ParserHelper>,
 }
 
 impl StateManager {
@@ -211,6 +211,7 @@ impl StateManager {
         Self {
             file_manager: Mutex::new(FileManager::new()),
             editor_config: Mutex::new(EditorConfig::default()),
+            parser_helper: Mutex::new(ParserHelper::default()),
         }
     }
 }
