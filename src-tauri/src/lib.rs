@@ -44,7 +44,7 @@ pub struct OpenedFile {
 }
 
 impl OpenedFile {
-    pub fn new(path_string: impl Into<String>) -> Result<Self, Error> {
+    fn new(path_string: impl Into<String>) -> Result<Self, Error> {
         let path = PathBuf::from(path_string.into());
         //Note : This functions should check whether the file is openable / or it is a text file
         let _file = fs::metadata(&path).unwrap();
@@ -69,12 +69,16 @@ impl OpenedFile {
         })
     }
 
-    pub fn save(&self) -> Result<(), std::io::Error> {
+    fn language(&self) -> Option<Lang> {
+        self.language.clone()
+    }
+
+    fn save(&self) -> Result<(), std::io::Error> {
         fs::write(&self.path, &self.source_code)?;
         Ok(())
     }
 
-    pub fn update_source_code(&mut self, source_code: &Vec<u8>) {
+    fn update_source_code(&mut self, source_code: &Vec<u8>) {
         self.source_code = source_code.to_owned();
     }
 }
@@ -120,6 +124,24 @@ impl FileManager {
             files: Box::default(),
         }
     }
+
+    pub fn get_file_language(&self, id: &u32) -> Option<Lang> {
+        let file_mutex = self._get_file(id);
+        if let Ok(file) = file_mutex {
+            file.lock().unwrap().language()
+        } else {
+            None
+        }
+    }
+
+    pub fn update_source_code_for_file(&self, id: &u32, source_code: &Vec<u8>) {
+        let file_mutex = self._get_file(id);
+        if let Ok(file) = file_mutex {
+            let mut file = file.lock().unwrap();
+            file.update_source_code(source_code);
+        }
+    }
+
     pub fn load_file(&mut self, path: impl Into<String>) -> Result<(u32, bool), Error> {
         let file = OpenedFile::new(path.into())?;
         let same_name_exist = self._search_same_name_exist(&file.name);
