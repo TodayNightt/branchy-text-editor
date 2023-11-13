@@ -24,3 +24,12 @@ pub fn get_query_from_each_language(language: &Lang) -> &str {
         _ => tree_sitter_javascript::HIGHLIGHT_QUERY,
     }
 }
+
+#[macro_export]
+macro_rules! insert_to_hash_map {
+    (parser $parsers: ident,$lang : expr) => {
+        let mut parser = Parser::new();
+        let _ = parser.set_language(get_tree_sitter_language(&$lang));
+        $parsers.insert($lang, parser);
+    };
+}
