@@ -1,9 +1,10 @@
-use tree_sitter::Language;
+use tree_sitter::{Language, Parser, Query};
 
 use crate::Lang;
 
 pub mod highlighter;
 pub mod parser;
+pub mod theme;
 
 pub fn get_tree_sitter_language(lang: &Lang) -> Language {
     match lang {
