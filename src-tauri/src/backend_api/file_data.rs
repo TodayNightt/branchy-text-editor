@@ -1,4 +1,7 @@
-use crate::{treesitter_backend::parser::ChangesRange, StateManager};
+use crate::{
+    treesitter_backend::{highlighter::MonacoHighlights, parser::ChangesRange, query::TokenData},
+    StateManager,
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -71,13 +74,17 @@ pub fn set_highlights(
 ) -> Result<Vec<u32>, String> {
     let file_manager = state.file_manager.lock().unwrap();
     let parser_helper = state.parser_helper.lock().unwrap();
-    file_manager
-        ._get_file(&id)?
-        .lock()
-        .unwrap()
-        .highlight(
+    let source_code_in_bytes = ranged_source_code.into_bytes();
+    let query_iter = &state.query_iter;
+    let mut token_data = TokenData::default();
+    let file_language = file_manager.get_file_language(&id);
+    if file_language.is_some() {
+        token_data = query_iter.iter_query(
             &parser_helper.get_tree(&id),
-            ranged_source_code.into_bytes(),
-        )
-        .map_err(|_err| "Error getting a query".to_string())
+            &file_language.unwrap(),
+            &source_code_in_bytes,
+        );
+    }
+
+    Ok(MonacoHighlights::emit(&token_data))
 }

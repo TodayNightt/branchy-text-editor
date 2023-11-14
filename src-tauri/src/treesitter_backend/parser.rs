@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::{Lang, OpenedFile};
+use crate::{insert_to_hash_map, Lang, OpenedFile};
 
 use derivative::Derivative;
 use serde::{Deserialize, Serialize};
@@ -55,14 +55,6 @@ impl CustomPoint {
     }
 }
 
-macro_rules! insert_to_hash_map {
-    ($parsers: ident,$lang : expr) => {
-        let mut parser = Parser::new();
-        let _ = parser.set_language(get_tree_sitter_language(&$lang));
-        $parsers.insert($lang, parser);
-    };
-}
-
 pub struct ParserHelper {
     parsers: HashMap<Lang, Parser>,
     trees: HashMap<u32, Option<Tree>>,
@@ -70,9 +62,10 @@ pub struct ParserHelper {
 impl Default for ParserHelper {
     fn default() -> Self {
         let mut parsers: HashMap<Lang, Parser> = HashMap::new();
-        insert_to_hash_map!(parsers, Lang::Javascript);
-        insert_to_hash_map!(parsers, Lang::Rust);
-        insert_to_hash_map!(parsers, Lang::Html);
+        insert_to_hash_map!(parser parsers, Lang::Javascript);
+        insert_to_hash_map!(parser parsers, Lang::Rust);
+        insert_to_hash_map!(parser parsers, Lang::Html);
+        insert_to_hash_map!(parser parsers, Lang::Json);
         Self {
             parsers: parsers,
             trees: HashMap::default(),
@@ -102,7 +95,6 @@ impl ParserHelper {
 
     pub fn get_tree(&self, id: &u32) -> Option<Tree> {
         let tree = self.trees.get(id).unwrap();
-        println!("{:?}", &tree);
         tree.clone()
     }
 

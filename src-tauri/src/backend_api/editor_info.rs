@@ -1,7 +1,7 @@
 use crate::{
     treesitter_backend::{
-        get_query_from_each_language, get_tree_sitter_language,
-        highlighter::{EditorTheme, LanguageTheme},
+        get_query_from_each_language, get_tree_sitter_language, query,
+        theme::{EditorTheme, LanguageTheme},
     },
     Lang, StateManager,
 };
@@ -35,12 +35,11 @@ pub fn get_editor_config(state: tauri::State<StateManager>) -> (LanguageTheme, E
 
 #[tauri::command]
 #[specta::specta]
-pub fn get_tokens_legend(lang: Lang) -> Result<SemanticLegend, String> {
-    let query = Query::new(
-        get_tree_sitter_language(&lang),
-        get_query_from_each_language(&lang),
-    )
-    .map_err(|_err| "Error in getting the legend".to_string())?;
+pub fn get_tokens_legend(
+    state: tauri::State<StateManager>,
+    lang: Lang,
+) -> Result<SemanticLegend, String> {
+    let query_iter = &state.query_iter;
 
-    Ok(SemanticLegend::create(query.capture_names().to_vec()))
+    Ok(SemanticLegend::create(query_iter.get_legend(&lang)))
 }

@@ -48,6 +48,8 @@ pub struct EditorTheme {
     background: String,
 }
 
+// NOTE : We can use generic instead of field for each language
+//        Because some language have unique token types
 #[derive(Deserialize, Serialize, Debug, Clone, Type)]
 pub struct LanguageTheme {
     default: Theme,
