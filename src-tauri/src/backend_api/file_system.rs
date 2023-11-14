@@ -63,7 +63,7 @@ pub fn open_file(state: tauri::State<StateManager>, path: String) -> Result<Open
 #[tauri::command]
 #[specta::specta]
 pub fn close_file(state: tauri::State<StateManager>, id: u32) -> Result<(), String> {
-    let mut file_maneger = state.file_manager.lock().unwrap();
-    file_maneger.files.as_mut().remove(&id);
+    let mut file_manager = state.file_manager.lock().unwrap();
+    file_manager.close_file(&id);
     Ok(())
 }

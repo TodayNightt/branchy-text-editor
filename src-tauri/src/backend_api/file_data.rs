@@ -10,12 +10,14 @@ pub fn get_source_code_if_any(
     let mut parser_helper = state.parser_helper.lock().unwrap();
     let source_code = file_manager.read_source_code_in_bytes(&id).unwrap();
     let file_mutex = file_manager._get_file(&id)?;
-    parser_helper.append_tree(&id, file_mutex.clone());
-    parser_helper.parse(
-        &id,
-        &file_manager.get_file_language(&id).unwrap(),
-        &source_code,
-    );
+    if file_manager.get_file_language(&id).is_some() {
+        parser_helper.append_tree(&id, file_mutex.clone());
+        parser_helper.parse(
+            &id,
+            &file_manager.get_file_language(&id).unwrap(),
+            &source_code,
+        );
+    }
 
     match source_code.len() {
         s if s > 0 => Ok(Some(String::from_utf8(source_code).unwrap())),
@@ -51,12 +53,11 @@ pub fn handle_file_changes(
     let mut parser_helper = state.parser_helper.lock().unwrap();
     let source_code_in_bytes = source_code.as_bytes().to_vec();
     file_manager.update_source_code_for_file(&id, &source_code_in_bytes);
-    parser_helper.update_tree(&id, range);
-    parser_helper.parse(
-        &id,
-        &file_manager.get_file_language(&id).unwrap(),
-        &source_code_in_bytes,
-    );
+    let file_language = file_manager.get_file_language(&id);
+    if file_language.is_some() {
+        parser_helper.update_tree(&id, range);
+        parser_helper.parse(&id, &file_language.unwrap(), &source_code_in_bytes);
+    }
 
     Ok(())
 }

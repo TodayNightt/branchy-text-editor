@@ -70,7 +70,7 @@ impl OpenedFile {
     }
 
     fn language(&self) -> Option<Lang> {
-        self.language.clone()
+        self.language.to_owned()
     }
 
     fn save(&self) -> Result<(), std::io::Error> {
@@ -125,12 +125,29 @@ impl FileManager {
         }
     }
 
+    pub fn close_file(&mut self, id: &u32) {
+        self.files.as_mut().remove_entry(id);
+    }
+
     pub fn get_file_language(&self, id: &u32) -> Option<Lang> {
         let file_mutex = self._get_file(id);
-        if let Ok(file) = file_mutex {
-            file.lock().unwrap().language()
+
+        if let Ok(file_mutex) = file_mutex.clone() {
+            let file = file_mutex.lock().unwrap();
+            println!("{:?}", &file);
+            file.language().clone()
         } else {
             None
+        }
+    }
+
+    pub fn update_source_code(&self, id: &u32, source_code: &Vec<u8>) {
+        let file_mutex = self._get_file(id);
+
+        if let Ok(file_mutex) = file_mutex {
+            let mut file = file_mutex.lock().unwrap();
+
+            file.update_source_code(source_code);
         }
     }
 
