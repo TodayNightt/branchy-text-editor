@@ -54,14 +54,14 @@ export function setHighlights(id: number, rangedSourceCode: string) {
     return invoke()<number[]>("set_highlights", { id,rangedSourceCode })
 }
 
-export type CustomPoint = { row: number; column: number }
-export type ChangesRange = { start_byte: number; old_end_byte: number; new_end_byte: number; start_position: CustomPoint; old_end_position: CustomPoint; new_end_position: CustomPoint }
-export type LanguageTheme = { default: Theme; javascript: Theme | null; rust: Theme | null; java: Theme | null; html: Theme | null; css: Theme | null; python: Theme | null; ruby: Theme | null }
-export type DirectoryItem = { is_file: boolean; name: string; path: string; childrens: DirectoryItem[] | null }
-export type Theme = { rules: Token[] }
 export type EditorTheme = { background: string }
 export type Lang = "Javascript" | "Typescript" | "Rust" | "Python" | "Java" | "Ruby" | "Html" | "Css" | "Json"
+export type ChangesRange = { start_byte: number; old_end_byte: number; new_end_byte: number; start_position: CustomPoint; old_end_position: CustomPoint; new_end_position: CustomPoint }
+export type Theme = { rules: Token[] }
+export type DirectoryItem = { is_file: boolean; name: string; path: string; childrens: DirectoryItem[] | null }
 export type SemanticLegend = { _token_types: string[]; _token_modifier: string[] }
 export type OpenFile = { id: number; name: string; language: Lang | null; same_name_exist: boolean; path: string }
+export type LanguageTheme = { default: Theme; javascript: Theme | null; rust: Theme | null; java: Theme | null; html: Theme | null; css: Theme | null; python: Theme | null; ruby: Theme | null }
+export type CustomPoint = { row: number; column: number }
 export type Token = { token: string; foreground: string }
 export type FileSystemInfo = { current_directory: string; directory_items: DirectoryItem[] }
