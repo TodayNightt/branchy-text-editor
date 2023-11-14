@@ -1,4 +1,4 @@
-import { Component, createSignal, onMount } from "solid-js";
+import { Component, createSignal, onCleanup, onMount } from "solid-js";
 import {
   invokeGetSourceCode,
   invokeGetTokensLegend,
@@ -162,6 +162,7 @@ const Editor: Component<{ fileInfo: OpenFile }> = (props) => {
     // Handle the on change event
     editor.onDidChangeModelContent((e) => handleChange(e));
   });
+  onCleanup(() => editor?.dispose());
   return <div class={styles.editor} ref={editorEl}></div>;
 };
 
