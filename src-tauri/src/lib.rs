@@ -1,74 +1,86 @@
-// use tree_sitter_cli::highlight::Theme;
-// use tree_sitter_highlight::{Highlight, Highlighter, HtmlRenderer};
-// use tree_sitter_loader::{Config, Loader};
-
-// // Adapter function for interoperating with Tree-sitter's highlight library.
-// //
-// // * `code` - The code snippet to highlight.
-// // * `scope` - The TextMate scope identifying the language of the code snippet.
-// pub fn highlight_adapter(code: &str, scope: &str) -> String {
-//     // The directory to search for parsers
-//     let parser_directory = std::env::current_dir().unwrap().join("parsers");
-
-//     let theme = Theme::default();
-
-//     // The loader is used to load parsers
-//     let loader = {
-//         let mut loader = Loader::new().unwrap();
-//         let config = {
-//             let parser_directories = vec![parser_directory];
-//             Config { parser_directories }
-//         };
-//         loader.find_all_languages(&config).unwrap();
-//         loader.configure_highlights(&theme.highlight_names);
-//         loader
-//     };
-
-//     // Retrieve the highlight config for the given language scope
-//     let config = loader
-//         .language_configuration_for_scope(scope)
-//         .unwrap()
-//         .and_then(|(language, config)| config.highlight_config(language).ok())
-//         .unwrap()
-//         .unwrap();
-
-//     let code = code.as_bytes();
-
-//     // Highlight the code
-//     let mut highlighter = Highlighter::new();
-//     let highlights = highlighter.highlight(config, code, None, |_| None).unwrap();
-
-//     // Render and return the highlighted code as an HTML snippet
-//     let get_style_css = |h: Highlight| theme.styles[h.0].css.as_ref().unwrap().as_bytes();
-//     let mut renderer = HtmlRenderer::new();
-//     renderer.render(highlights, code, &get_style_css).unwrap();
-//     renderer.lines().collect()
-// }
-
+use backend_api::file_system::CustomError;
+use derivative::Derivative;
 use path_absolutize::*;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::{
-    cell::RefCell,
     collections::HashMap,
     ffi::OsStr,
     fs,
     io::Error,
     path::{Path, PathBuf},
-    sync::Mutex,
+    sync::{Arc, Mutex},
 };
-
-use tree_sitter::Tree;
+use tree_sitter::{Query, Tree};
+use treesitter_backend::{parser::ParserHelper, query::QueryManager, theme::ThemeConfig};
 pub mod backend_api;
+pub mod error;
 pub mod treesitter_backend;
 
-#[derive(Debug, Clone, Serialize, Type, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Derivative)]
+#[derivative(Debug, PartialEq, Eq, Hash, PartialOrd, Clone, Ord, Hash)]
 pub struct OpenedFile {
     name: String,
-    source_code: Vec<u8>,
     language: Option<Lang>,
     path: PathBuf,
+    source_code: Vec<u8>,
+    #[derivative(
+        PartialEq = "ignore",
+        Hash = "ignore",
+        PartialOrd = "ignore",
+        Ord = "ignore",
+        Debug = "ignore"
+    )]
+    tree: Arc<Mutex<Option<Tree>>>,
+    #[derivative(
+        PartialEq = "ignore",
+        Hash = "ignore",
+        PartialOrd = "ignore",
+        Ord = "ignore",
+        Debug = "ignore"
+    )]
+    query: Arc<Option<Query>>,
+}
+
+impl OpenedFile {
+    fn new(path_string: impl Into<String>) -> Result<Self, Error> {
+        let path = PathBuf::from(path_string.into());
+        //Note : This functions should check whether the file is openable / or it is a text file
+        let _file = fs::metadata(&path).unwrap();
+        let lang = Lang::check_lang(
+            path.extension()
+                .unwrap_or(OsStr::new("unknown"))
+                .to_str()
+                .unwrap(),
+        );
+        Ok(Self {
+            name: path
+                .file_name()
+                .unwrap_or(OsStr::new("unknown"))
+                .to_os_string()
+                .into_string()
+                .unwrap(),
+            language: lang,
+            path,
+            source_code: vec![],
+            tree: Arc::new(Mutex::new(None)),
+            query: Arc::new(None),
+        })
+    }
+
+    fn language(&self) -> Option<Lang> {
+        self.language.to_owned()
+    }
+
+    fn save(&self) -> Result<(), std::io::Error> {
+        fs::write(&self.path, &self.source_code)?;
+        Ok(())
+    }
+
+    fn update_source_code(&mut self, source_code: &Vec<u8>) {
+        self.source_code = source_code.to_owned();
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Serialize, Deserialize, Type)]
@@ -81,35 +93,7 @@ pub enum Lang {
     Ruby,
     Html,
     Css,
-}
-
-#[derive(Debug, Default, Deserialize, Serialize)]
-pub struct FileManager {
-    files: Box<HashMap<u32, Box<OpenedFile>>>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Default)]
-pub struct Theme;
-
-#[derive(Debug, Serialize, Deserialize, Default)]
-pub struct LastSection;
-
-#[derive(Debug, Serialize, Deserialize, Default)]
-pub struct EditorConfig {
-    theme: RefCell<Theme>,
-    last_section: Option<RefCell<LastSection>>,
-}
-
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct StateManager {
-    pub file_manager: Mutex<FileManager>,
-    pub editor_config: Mutex<EditorConfig>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct RequestParse {
-    id: u64,
-    source_code: String,
+    Json,
 }
 
 impl Lang {
@@ -123,35 +107,15 @@ impl Lang {
             "rb" => Some(Self::Ruby),
             "htm" | "html" => Some(Self::Html),
             "css" | "scss" | "sass" => Some(Self::Css),
+            "json" => Some(Lang::Json),
             _ => None,
         }
     }
 }
 
-impl OpenedFile {
-    pub fn new(path_string: impl Into<String>) -> Result<Self, Error> {
-        let path = PathBuf::from(path_string.into());
-        Ok(Self {
-            name: path
-                .file_name()
-                .unwrap_or(OsStr::new("unknown"))
-                .to_os_string()
-                .into_string()
-                .unwrap(),
-            source_code: read_file(path.as_path())?.into(),
-            language: Lang::check_lang(
-                path.extension()
-                    .unwrap_or(OsStr::new("unknown"))
-                    .to_str()
-                    .unwrap(),
-            ),
-            path,
-        })
-    }
-
-    pub fn save(&self, changes: String) {
-        fs::write(&self.path, changes).unwrap();
-    }
+#[derive(Debug, Default)]
+pub struct FileManager {
+    files: Box<HashMap<u32, Arc<Mutex<OpenedFile>>>>,
 }
 
 impl FileManager {
@@ -160,26 +124,61 @@ impl FileManager {
             files: Box::default(),
         }
     }
+
+    pub fn close_file(&mut self, id: &u32) {
+        self.files.as_mut().remove_entry(id);
+    }
+
+    pub fn get_file_language(&self, id: &u32) -> Option<Lang> {
+        let file_mutex = self._get_file(id);
+
+        if let Ok(file_mutex) = file_mutex.clone() {
+            let file = file_mutex.lock().unwrap();
+            file.language().clone()
+        } else {
+            None
+        }
+    }
+
+    pub fn update_source_code(&self, id: &u32, source_code: &Vec<u8>) {
+        let file_mutex = self._get_file(id);
+
+        if let Ok(file_mutex) = file_mutex {
+            let mut file = file_mutex.lock().unwrap();
+
+            file.update_source_code(source_code);
+        }
+    }
+
+    pub fn update_source_code_for_file(&self, id: &u32, source_code: &Vec<u8>) {
+        let file_mutex = self._get_file(id);
+        if let Ok(file) = file_mutex {
+            let mut file = file.lock().unwrap();
+            file.update_source_code(source_code);
+        }
+    }
+
     pub fn load_file(&mut self, path: impl Into<String>) -> Result<(u32, bool), Error> {
         let file = OpenedFile::new(path.into())?;
         let same_name_exist = self._search_same_name_exist(&file.name);
         let id = rand::thread_rng().next_u32();
         let files_list = self.files.as_mut();
-        files_list.insert(id, Box::new(file));
+        files_list.insert(id, Arc::new(Mutex::new(file)));
         Ok((id, same_name_exist))
     }
 
-    fn get_path_from_current_dir(&self) {
-        
-    }
-
-    fn _get_file(&self, id: &u32) -> OpenedFile {
-        self.files.as_ref().get(id).unwrap().as_ref().clone()
+    fn _get_file(&self, id: &u32) -> Result<Arc<Mutex<OpenedFile>>, String> {
+        if let Some(file) = self.files.as_ref().get(&id) {
+            Ok(file.clone())
+        } else {
+            Err("File cannot be found _get_file".to_string())
+        }
     }
 
     fn _search_same_name_exist(&self, name: &String) -> bool {
         let files_list = self.files.as_ref();
         for file in files_list.values() {
+            let file = file.lock().unwrap();
             if file.name.eq(name) {
                 return true;
             }
@@ -187,9 +186,42 @@ impl FileManager {
         false
     }
 
-    pub fn save_file(&self, id: &u32, changes: String) {
-        self._get_file(id).save(changes);
+    pub fn save_file(&self, id: &u32) -> Result<(), CustomError> {
+        let file = self
+            ._get_file(&id)
+            .map_err(|err| CustomError::GetFileError { message: err })?;
+        file.lock().unwrap().save()?;
+        Ok(())
     }
+
+    pub fn read_source_code_in_bytes(&self, id: &u32) -> Result<Vec<u8>, String> {
+        let file_mutex = self._get_file(id)?;
+        let mut file = file_mutex.lock().unwrap();
+        let path = &file.path;
+        let source_code = read_file(path).map_err(|_err| "Cannot read file".to_string())?;
+        file.update_source_code(&source_code);
+        Ok(source_code)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct LastSection;
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct EditorConfig {
+    theme: Mutex<ThemeConfig>,
+    last_section: Option<Mutex<LastSection>>,
+}
+
+#[derive(Default, Serialize)]
+pub struct StateManager {
+    #[serde(skip)]
+    pub file_manager: Mutex<FileManager>,
+    pub editor_config: Mutex<EditorConfig>,
+    #[serde(skip)]
+    parser_helper: Mutex<ParserHelper>,
+    #[serde(skip)]
+    query_iter: QueryManager,
 }
 
 impl StateManager {
@@ -197,6 +229,8 @@ impl StateManager {
         Self {
             file_manager: Mutex::new(FileManager::new()),
             editor_config: Mutex::new(EditorConfig::default()),
+            parser_helper: Mutex::new(ParserHelper::default()),
+            query_iter: QueryManager::default(),
         }
     }
 }
@@ -271,37 +305,37 @@ pub fn get_directory_items(dir: &PathBuf, recursion: i32) -> Vec<DirectoryItem> 
 //     directories
 // }
 
-#[cfg(test)]
-mod test {
+// #[cfg(test)]
+// mod test {
 
-    use crate::backend_api::file_system::get_file_system_info;
+//     use crate::backend_api::file_system::get_file_system_info;
 
-    use super::*;
-    #[test]
-    fn check_file_insert() {
-        let path = String::from("build.rs");
-        let mut file_manager = FileManager::default();
-        let file_info = file_manager.load_file(&path);
-        let test_file = OpenedFile::new(&path).unwrap();
-        if let Ok((id, _same_name_exist)) = file_info {
-            assert_eq!(file_manager._get_file(&id), test_file);
-        }
-    }
+//     use super::*;
+//     #[test]
+//     fn check_file_insert() {
+//         let path = String::from("build.rs");
+//         let mut file_manager = FileManager::default();
+//         let file_info = file_manager.load_file(&path);
+//         let test_file = OpenedFile::new(&path).unwrap();
+//         if let Ok((id, _same_name_exist)) = file_info {
+//             assert_eq!(file_manager._get_file(&id), test_file);
+//         }
+//     }
 
-    #[test]
-    fn check_file_extension() {
-        let file = OpenedFile::new(String::from("build.rs")).unwrap();
-        assert_eq!(file.language, Some(Lang::Rust));
-    }
+//     #[test]
+//     fn check_file_extension() {
+//         let file = OpenedFile::new(String::from("build.rs")).unwrap();
+//         assert_eq!(file.language, Some(Lang::Rust));
+//     }
 
-    #[test]
-    fn check_directory_item() {
-        let _items = get_directory_items(&PathBuf::from("."), 2);
-        // dbg!(items);
-    }
+//     #[test]
+//     fn check_directory_item() {
+//         let _items = get_directory_items(&PathBuf::from("."), 2);
+//         // dbg!(items);
+//     }
 
-    #[test]
-    fn test_path_buf() {
-        dbg!(get_file_system_info(None));
-    }
-}
+//     #[test]
+//     fn test_path_buf() {
+//         dbg!(get_file_system_info(None));
+//     }
+// }

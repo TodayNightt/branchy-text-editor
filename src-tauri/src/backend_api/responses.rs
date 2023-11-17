@@ -33,7 +33,22 @@ impl OpenFile {
             same_name_exist: file_info.1,
             name: file.name.to_owned(),
             language: file.language.to_owned(),
-            path: file.path.to_owned(),
+            path: file.path.to_str().unwrap().to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct SemanticLegend {
+    _token_types: Vec<String>,
+    _token_modifier: Vec<String>,
+}
+
+impl SemanticLegend {
+    pub fn create(name: Vec<String>) -> Self {
+        Self {
+            _token_types: name.to_owned(),
+            _token_modifier: vec![],
         }
     }
 }

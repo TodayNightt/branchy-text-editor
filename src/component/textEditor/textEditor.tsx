@@ -1,13 +1,14 @@
 import { Component, For, JSX } from "solid-js";
 // @ts-ignore
 import styles from "./styles.module.scss";
+import "./userWorker";
 
 import {
   store,
   changeSelected,
   invokeCloseFile,
   invokeReset,
-} from "../../stateStore";
+} from "../../backendApi/stateStore";
 import { Button, Tabs } from "@kobalte/core";
 import Editor from "./components/editor";
 
