@@ -13,7 +13,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 use tree_sitter::{Query, Tree};
-use treesitter_backend::{parser::ParserHelper, query::QueryIter, theme::ThemeConfig};
+use treesitter_backend::{parser::ParserHelper, query::QueryManager, theme::ThemeConfig};
 pub mod backend_api;
 pub mod error;
 pub mod treesitter_backend;
@@ -134,7 +134,6 @@ impl FileManager {
 
         if let Ok(file_mutex) = file_mutex.clone() {
             let file = file_mutex.lock().unwrap();
-            println!("{:?}", &file);
             file.language().clone()
         } else {
             None
@@ -222,7 +221,7 @@ pub struct StateManager {
     #[serde(skip)]
     parser_helper: Mutex<ParserHelper>,
     #[serde(skip)]
-    query_iter: QueryIter,
+    query_iter: QueryManager,
 }
 
 impl StateManager {
@@ -231,7 +230,7 @@ impl StateManager {
             file_manager: Mutex::new(FileManager::new()),
             editor_config: Mutex::new(EditorConfig::default()),
             parser_helper: Mutex::new(ParserHelper::default()),
-            query_iter: QueryIter::default(),
+            query_iter: QueryManager::default(),
         }
     }
 }

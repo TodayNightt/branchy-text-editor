@@ -1,5 +1,5 @@
 use crate::{
-    treesitter_backend::{highlighter::MonacoHighlights, parser::ChangesRange, query::TokenData},
+    treesitter_backend::{highlighter::MonacoHighlights, parser::ChangesRange},
     StateManager,
 };
 
@@ -76,15 +76,18 @@ pub fn set_highlights(
     let parser_helper = state.parser_helper.lock().unwrap();
     let source_code_in_bytes = ranged_source_code.into_bytes();
     let query_iter = &state.query_iter;
-    let mut token_data = TokenData::default();
     let file_language = file_manager.get_file_language(&id);
     if file_language.is_some() {
-        token_data = query_iter.iter_query(
+        let tokens = query_iter.iter_query(
             &parser_helper.get_tree(&id),
-            &file_language.unwrap(),
+            &file_language.clone().unwrap(),
             &source_code_in_bytes,
         );
-    }
 
-    Ok(MonacoHighlights::emit(&token_data))
+        let mut token_data = query_iter.sort_layer(tokens, &file_language.unwrap());
+
+        let highlights = token_data.analyse_layer();
+        return Ok(MonacoHighlights::emit(&highlights));
+    }
+    Err("The file language is not supported".to_string())
 }

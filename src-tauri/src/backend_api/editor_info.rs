@@ -1,13 +1,11 @@
+use std::ops::Deref;
+
 use crate::{
-    treesitter_backend::{
-        get_query_from_each_language, get_tree_sitter_language, query,
-        theme::{EditorTheme, LanguageTheme},
-    },
+    treesitter_backend::theme::{EditorTheme, LanguageTheme},
     Lang, StateManager,
 };
-use tree_sitter::Query;
 
-use super::responses::SemanticLegend;
+use crate::treesitter_backend::query::SemanticLegend;
 
 #[tauri::command]
 #[specta::specta]
@@ -41,5 +39,5 @@ pub fn get_tokens_legend(
 ) -> Result<SemanticLegend, String> {
     let query_iter = &state.query_iter;
 
-    Ok(SemanticLegend::create(query_iter.get_legend(&lang)))
+    Ok(query_iter.get_legend(&lang).deref().to_owned())
 }
