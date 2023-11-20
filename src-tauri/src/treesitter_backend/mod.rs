@@ -10,7 +10,8 @@ pub mod theme;
 pub fn get_tree_sitter_language(lang: &Lang) -> Language {
     match lang {
         Lang::Javascript => tree_sitter_javascript::language(),
-        Lang::Typescript => tree_sitter_typescript::language_typescript(),
+        // Currently not supported
+        // Lang::Typescript => tree_sitter_typescript::language_typescript(),
         Lang::Rust => tree_sitter_rust::language(),
         Lang::Html => tree_sitter_html::language(),
         _ => tree_sitter_javascript::language(),
@@ -24,9 +25,10 @@ pub fn get_query_from_each_language(language: &Lang) -> String {
             query_combine.push_str(tree_sitter_javascript::LOCALS_QUERY);
             // query_combine.push_str(tree_sitter_javascript::INJECTION_QUERY);
         }
-        Lang::Typescript => {
-            query_combine.push_str(tree_sitter_typescript::HIGHLIGHT_QUERY);
-        }
+        // Currently Not supported
+        // Lang::Typescript => {
+        //     query_combine.push_str(tree_sitter_typescript::HIGHLIGHT_QUERY);
+        // }
         Lang::Rust => {
             query_combine.push_str(tree_sitter_rust::HIGHLIGHT_QUERY);
             // query_combine.push_str(tree_sitter_rust::INJECTIONS_QUERY);
@@ -34,6 +36,9 @@ pub fn get_query_from_each_language(language: &Lang) -> String {
         Lang::Html => {
             query_combine.push_str(tree_sitter_html::HIGHLIGHT_QUERY);
             query_combine.push_str(tree_sitter_html::INJECTION_QUERY)
+        }
+        Lang::Json => {
+            query_combine.push_str(tree_sitter_json::HIGHLIGHT_QUERY);
         }
         _ => query_combine.push_str(tree_sitter_javascript::HIGHLIGHT_QUERY),
     }
@@ -81,6 +86,7 @@ macro_rules! insert_to_hash_map {
                 // if item.eq("punctuation.bracket") {
                 //     item = String::from("brackets");
                 // }
+
                 let spilt: Vec<&str> = item.split(".").collect();
                 let first = spilt.first();
                 let last = spilt.last();

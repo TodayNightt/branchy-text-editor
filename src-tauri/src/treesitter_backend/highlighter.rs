@@ -200,18 +200,28 @@ mod test {
         let id = file_manager.load_file("../../test_home/test.js").unwrap();
         let source_code = file_manager.read_source_code_in_bytes(&id.0).unwrap();
         let file_mutex = file_manager._get_file(&id.0);
-        let file_language = &file_manager.get_file_language(&id.0).clone();
-        parser_helper.append_tree(&id.0, file_mutex.unwrap().clone());
-        file_manager.update_source_code(&id.0, &source_code);
-        parser_helper.update_tree(&id.0, None);
-        parser_helper.parse(&id.0, &file_language.clone().unwrap(), &source_code);
-        let tokens = query_iter.iter_query(
-            &parser_helper.get_tree(&id.0),
-            &file_language.clone().unwrap(),
-            &source_code,
-        );
+        let file_language = &file_manager.get_file_language(&id.0).unwrap().clone();
+        parser_helper
+            .append_tree(&id.0, file_mutex.unwrap().clone())
+            .unwrap();
+        file_manager
+            .update_source_code_for_file(&id.0, &source_code)
+            .unwrap();
+        parser_helper.update_tree(&id.0, None).unwrap();
+        parser_helper
+            .parse(&id.0, &file_language.clone().unwrap(), &source_code)
+            .unwrap();
+        let tokens = query_iter
+            .iter_query(
+                &parser_helper.get_tree(&id.0).unwrap(),
+                &file_language.clone().unwrap(),
+                &source_code,
+            )
+            .unwrap();
 
-        let mut token_data = query_iter.sort_layer(tokens, &file_language.clone().unwrap());
+        let mut token_data = query_iter
+            .sort_layer(tokens, &file_language.clone().unwrap())
+            .unwrap();
         // println!("{:#1?}", &token_data);
 
         let highlights = token_data.analyse_layer();
