@@ -53,14 +53,17 @@ export const invokeChangeDir = async (dir: string | null) => {
 };
 
 export const invokeOpenFile = async (path: string) => {
-  const exist = store.openedFile.find((item) => item.path == path);
+  const exist = store.openedFile.find((item) => item.fileInfo.path == path);
   if (exist) {
-    setStore("selectedFile", exist.name);
+    setStore("selectedFile", exist.fileInfo.name);
     return;
   }
   const file = await catchIfAny(openFile(path));
   if (file) {
-    setStore("openedFile", (prev) => [...prev, file]);
+    setStore("openedFile", (prev) => [
+      ...prev,
+      { fileInfo: file, editor: null },
+    ]);
     setStore("selectedFile", file.name);
   }
 };
