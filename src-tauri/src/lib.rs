@@ -1,5 +1,5 @@
-use backend_api::file_system::CustomError;
 use derivative::Derivative;
+use error::{Error, FileError, MutexLockError, NotFoundError, PathError};
 use path_absolutize::*;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -7,12 +7,10 @@ use specta::Type;
 use std::{
     collections::HashMap,
     ffi::OsStr,
-    fs,
-    io::Error,
+    fs::{self},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
-use tree_sitter::{Query, Tree};
 use treesitter_backend::{parser::ParserHelper, query::QueryManager, theme::ThemeConfig};
 pub mod backend_api;
 pub mod error;
@@ -24,48 +22,49 @@ pub struct OpenedFile {
     name: String,
     language: Option<Lang>,
     path: PathBuf,
+    openable: bool,
+    extension: String,
     source_code: Vec<u8>,
-    #[derivative(
-        PartialEq = "ignore",
-        Hash = "ignore",
-        PartialOrd = "ignore",
-        Ord = "ignore",
-        Debug = "ignore"
-    )]
-    tree: Arc<Mutex<Option<Tree>>>,
-    #[derivative(
-        PartialEq = "ignore",
-        Hash = "ignore",
-        PartialOrd = "ignore",
-        Ord = "ignore",
-        Debug = "ignore"
-    )]
-    query: Arc<Option<Query>>,
 }
 
 impl OpenedFile {
     fn new(path_string: impl Into<String>) -> Result<Self, Error> {
         let path = PathBuf::from(path_string.into());
         //Note : This functions should check whether the file is openable / or it is a text file
-        let _file = fs::metadata(&path).unwrap();
-        let lang = Lang::check_lang(
-            path.extension()
-                .unwrap_or(OsStr::new("unknown"))
-                .to_str()
-                .unwrap(),
-        );
+        let _file = fs::metadata(&path)?;
+        let binding = path.clone();
+        let file_extension = &binding
+            .extension()
+            .unwrap_or(OsStr::new("unknown"))
+            .to_str()
+            .ok_or_else(|| PathError::ToStringError)
+            .map_err(|err| FileError::CreateFileError(err.to_string()))?;
+
+        let lang = Lang::check_lang(file_extension);
+
+        // if lang.is_none() {
+        //     let mut extension = String::from(".");
+        //     extension.push_str(&file_extension.to_owned());
+        //     return Err(FileError::LanguageNotSupportError(extension));
+        // }
+
+        let name = &path
+            .clone()
+            .file_name()
+            .unwrap_or(OsStr::new("unknown"))
+            .to_os_string()
+            .into_string()
+            .map_err(|_err| PathError::ToStringError)
+            .map_err(|err| FileError::CreateFileError(err.to_string()))?
+            .to_owned();
+
         Ok(Self {
-            name: path
-                .file_name()
-                .unwrap_or(OsStr::new("unknown"))
-                .to_os_string()
-                .into_string()
-                .unwrap(),
+            name: name.to_string(),
             language: lang,
             path,
+            openable: true,
+            extension: file_extension.to_string(),
             source_code: vec![],
-            tree: Arc::new(Mutex::new(None)),
-            query: Arc::new(None),
         })
     }
 
@@ -73,9 +72,9 @@ impl OpenedFile {
         self.language.to_owned()
     }
 
-    fn save(&self) -> Result<(), std::io::Error> {
-        fs::write(&self.path, &self.source_code)?;
-        Ok(())
+    fn save(&self) -> Result<(), FileError> {
+        Ok(fs::write(&self.path, &self.source_code)
+            .map_err(|_err| FileError::SavingFileError(self.name.clone()))?)
     }
 
     fn update_source_code(&mut self, source_code: &Vec<u8>) {
@@ -113,6 +112,22 @@ impl Lang {
     }
 }
 
+impl ToString for Lang {
+    fn to_string(&self) -> String {
+        match self {
+            Lang::Java => "java".to_string(),
+            Lang::Javascript => "javascript".to_string(),
+            Lang::Typescript => "typescript".to_string(),
+            Lang::Ruby => "ruby".to_string(),
+            Lang::Rust => "rust".to_string(),
+            Lang::Html => "html".to_string(),
+            Lang::Css => "css".to_string(),
+            Lang::Python => "python".to_string(),
+            Lang::Json => "json".to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct FileManager {
     files: Box<HashMap<u32, Arc<Mutex<OpenedFile>>>>,
@@ -125,80 +140,93 @@ impl FileManager {
         }
     }
 
+    pub fn file_exists(&self, id: &u32) -> bool {
+        self.files.contains_key(id)
+    }
+
     pub fn close_file(&mut self, id: &u32) {
         self.files.as_mut().remove_entry(id);
     }
 
-    pub fn get_file_language(&self, id: &u32) -> Option<Lang> {
-        let file_mutex = self._get_file(id);
-
-        if let Ok(file_mutex) = file_mutex.clone() {
-            let file = file_mutex.lock().unwrap();
-            file.language().clone()
-        } else {
-            None
-        }
+    pub fn get_file_language(&self, id: &u32) -> Result<Option<Lang>, Error> {
+        let file_mutex = self._get_file(id)?;
+        let file = file_mutex
+            .try_lock()
+            .map_err(|err| MutexLockError(err.to_string()))?;
+        Ok(file.language().clone())
     }
 
-    pub fn update_source_code(&self, id: &u32, source_code: &Vec<u8>) {
-        let file_mutex = self._get_file(id);
-
-        if let Ok(file_mutex) = file_mutex {
-            let mut file = file_mutex.lock().unwrap();
-
-            file.update_source_code(source_code);
-        }
+    pub fn get_file_extension(&self, id: &u32) -> Result<String, Error> {
+        let file_mutex = self._get_file(id)?;
+        let file = file_mutex
+            .try_lock()
+            .map_err(|err| MutexLockError(err.to_string()))?;
+        Ok(file.extension.clone())
     }
 
-    pub fn update_source_code_for_file(&self, id: &u32, source_code: &Vec<u8>) {
-        let file_mutex = self._get_file(id);
-        if let Ok(file) = file_mutex {
-            let mut file = file.lock().unwrap();
-            file.update_source_code(source_code);
-        }
+    pub fn update_source_code_for_file(
+        &self,
+        id: &u32,
+        source_code: &Vec<u8>,
+    ) -> Result<(), Error> {
+        let file_mutex = self._get_file(id)?;
+        let mut file = file_mutex
+            .try_lock()
+            .map_err(|err| MutexLockError(err.to_string()))?;
+
+        file.update_source_code(source_code);
+        Ok(())
     }
 
     pub fn load_file(&mut self, path: impl Into<String>) -> Result<(u32, bool), Error> {
         let file = OpenedFile::new(path.into())?;
-        let same_name_exist = self._search_same_name_exist(&file.name);
+        let same_name_exist = self._search_same_name_exist(&file.name)?;
         let id = rand::thread_rng().next_u32();
         let files_list = self.files.as_mut();
         files_list.insert(id, Arc::new(Mutex::new(file)));
         Ok((id, same_name_exist))
     }
 
-    fn _get_file(&self, id: &u32) -> Result<Arc<Mutex<OpenedFile>>, String> {
-        if let Some(file) = self.files.as_ref().get(&id) {
-            Ok(file.clone())
-        } else {
-            Err("File cannot be found _get_file".to_string())
-        }
+    fn _get_file(&self, id: &u32) -> Result<Arc<Mutex<OpenedFile>>, NotFoundError> {
+        Ok(self
+            .files
+            .get(&id)
+            .ok_or_else(|| NotFoundError::FileNotFoundError(*id))?
+            .clone())
     }
 
-    fn _search_same_name_exist(&self, name: &String) -> bool {
+    fn _search_same_name_exist(&self, name: &String) -> Result<bool, Error> {
         let files_list = self.files.as_ref();
         for file in files_list.values() {
-            let file = file.lock().unwrap();
+            let file = file
+                .try_lock()
+                .map_err(|err| MutexLockError(err.to_string()))?;
             if file.name.eq(name) {
-                return true;
+                return Ok(true);
             }
         }
-        false
+        Ok(false)
     }
 
-    pub fn save_file(&self, id: &u32) -> Result<(), CustomError> {
-        let file = self
+    pub fn save_file(&self, id: &u32) -> Result<(), Error> {
+        let file_mutex = self
             ._get_file(&id)
-            .map_err(|err| CustomError::GetFileError { message: err })?;
-        file.lock().unwrap().save()?;
-        Ok(())
+            .map_err(|err| FileError::SavingFileError(err.to_string()))?;
+        let file = file_mutex
+            .try_lock()
+            .map_err(|err| MutexLockError(err.to_string()))?;
+        Ok(file.save()?)
     }
 
-    pub fn read_source_code_in_bytes(&self, id: &u32) -> Result<Vec<u8>, String> {
-        let file_mutex = self._get_file(id)?;
-        let mut file = file_mutex.lock().unwrap();
+    pub fn read_source_code_in_bytes(&self, id: &u32) -> Result<Vec<u8>, Error> {
+        let file_mutex = self
+            ._get_file(id)
+            .map_err(|err| FileError::ReadFileError(err.to_string()))?;
+        let mut file = file_mutex
+            .try_lock()
+            .map_err(|err| MutexLockError(err.to_string()))?;
         let path = &file.path;
-        let source_code = read_file(path).map_err(|_err| "Cannot read file".to_string())?;
+        let source_code = read_file(path)?;
         file.update_source_code(&source_code);
         Ok(source_code)
     }
@@ -235,8 +263,9 @@ impl StateManager {
     }
 }
 
-pub fn read_file(path: &Path) -> Result<Vec<u8>, Error> {
-    fs::read(path)
+pub fn read_file(path: &Path) -> Result<Vec<u8>, FileError> {
+    Ok(fs::read(path)
+        .map_err(|_err| FileError::ReadFileError(path.to_str().unwrap().to_string()))?)
 }
 
 #[derive(Debug, Serialize, Deserialize, Type)]
@@ -267,29 +296,35 @@ impl DirectoryItem {
     }
 }
 
-pub fn get_directory_items(dir: &PathBuf, recursion: i32) -> Vec<DirectoryItem> {
+pub fn get_directory_items(dir: &PathBuf, recursion: u32) -> Result<Vec<DirectoryItem>, Error> {
     let mut directory_item: Vec<DirectoryItem> = vec![];
-    let entries = dir.read_dir().unwrap();
+    let entries = dir.read_dir()?;
 
     for entry in entries {
         if let Ok(entry) = entry {
-            if entry.file_type().unwrap().is_file() {
+            if entry.file_type()?.is_file() {
                 directory_item.push(DirectoryItem::create_file(
-                    entry.file_name().into_string().unwrap(),
-                    entry.path().absolutize().unwrap().to_path_buf(),
+                    entry
+                        .file_name()
+                        .into_string()
+                        .map_err(|_err| PathError::ToStringError)?,
+                    entry.path().absolutize()?.to_path_buf(),
                 ))
             } else if entry.file_type().unwrap().is_dir() && recursion > 0 {
                 let recursion = recursion - 1;
-                let item = get_directory_items(&entry.path(), recursion);
+                let item = get_directory_items(&entry.path(), recursion)?;
                 directory_item.push(DirectoryItem::create_directory(
-                    entry.file_name().into_string().unwrap(),
-                    entry.path().absolutize().unwrap().to_path_buf(),
+                    entry
+                        .file_name()
+                        .into_string()
+                        .map_err(|_err| PathError::ToStringError)?,
+                    entry.path().absolutize()?.to_path_buf(),
                     item,
                 ));
             }
         }
     }
-    directory_item
+    Ok(directory_item)
 }
 
 // pub fn get_all_directory_along_the_path(dir: &PathBuf) -> HashMap<String, Vec<DirectoryItem>> {

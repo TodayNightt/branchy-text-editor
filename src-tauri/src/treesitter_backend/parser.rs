@@ -3,7 +3,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::{insert_to_hash_map, Lang, OpenedFile};
+use crate::{
+    error::{MutexLockError, NotFoundError},
+    insert_to_hash_map, Lang, OpenedFile,
+};
 
 use derivative::Derivative;
 use serde::{Deserialize, Serialize};
@@ -74,16 +77,42 @@ impl Default for ParserHelper {
 }
 
 impl ParserHelper {
-    pub fn append_tree(&mut self, id: &u32, file: Arc<Mutex<OpenedFile>>) {
-        let file = file.lock().unwrap();
+    pub fn currently_supported_language(&self) -> Vec<Lang> {
+        self.parsers.keys().map(|lang| lang.to_owned()).collect()
+    }
+
+    pub fn parser_exist(&self, language: &Lang) -> bool {
+        self.parsers.contains_key(language)
+    }
+
+    pub fn remove_tree(&mut self, id: &u32) {
+        self.trees.remove_entry(id);
+    }
+
+    pub fn append_tree(
+        &mut self,
+        id: &u32,
+        file: Arc<Mutex<OpenedFile>>,
+    ) -> Result<(), MutexLockError> {
+        let file = file
+            .try_lock()
+            .map_err(|err| MutexLockError(err.to_string()))?;
         if file.language.is_some() {
             let id = id.clone();
             self.trees.insert(id, None);
         }
+
+        Ok(())
     }
-    pub fn update_tree(&mut self, id: &u32, input_edit: Option<ChangesRange>) {
-        //FIXME : Handle the case that the tree is non-existence
-        let tree_option = self.trees.get_mut(id).unwrap();
+    pub fn update_tree(
+        &mut self,
+        id: &u32,
+        input_edit: Option<ChangesRange>,
+    ) -> Result<(), NotFoundError> {
+        let tree_option = self
+            .trees
+            .get_mut(id)
+            .ok_or_else(|| NotFoundError::TreeNotFoundError(id.clone()))?;
         if let Some(mut tree) = tree_option.take() {
             // Update the tree if tree = Some(tree) AND input = Some(input_edit)
             if let Some(input_edit) = input_edit {
@@ -91,17 +120,33 @@ impl ParserHelper {
             }
             *tree_option = Some(tree);
         }
+
+        Ok(())
     }
 
-    pub fn get_tree(&self, id: &u32) -> Option<Tree> {
-        let tree = self.trees.get(id).unwrap();
-        tree.clone()
+    pub fn get_tree(&self, id: &u32) -> Result<Option<Tree>, NotFoundError> {
+        let tree = self
+            .trees
+            .get(id)
+            .ok_or_else(|| NotFoundError::TreeNotFoundError(id.clone()))?;
+        Ok(tree.clone())
     }
 
-    pub fn parse(&mut self, id: &u32, language: &Lang, source_code: &Vec<u8>) {
-        let old_tree = self.trees.get(id).unwrap();
+    pub fn parse(
+        &mut self,
+        id: &u32,
+        language: &Lang,
+        source_code: &Vec<u8>,
+    ) -> Result<(), NotFoundError> {
+        let old_tree = self
+            .trees
+            .get(id)
+            .ok_or_else(|| NotFoundError::TreeNotFoundError(id.clone()))?;
         // FixMe : This will crash the program if self.language is not support or None
-        let parser = self.parsers.get_mut(language).unwrap();
+        let parser = self
+            .parsers
+            .get_mut(language)
+            .ok_or_else(|| NotFoundError::ParserNotFoundError(language.to_string()))?;
 
         // parse the source_code
         let new_tree = parser.parse(source_code, old_tree.as_ref());
@@ -116,6 +161,8 @@ impl ParserHelper {
         self.trees
             .entry(id.to_owned())
             .and_modify(|tree| *tree = new_tree);
+
+        Ok(())
     }
 
     // pub fn load_parser(&mut self, lang: Lang, language: Language) {
@@ -124,16 +171,15 @@ impl ParserHelper {
     //     self.parsers.insert(lang, parser);
     // }
 
-    pub fn get_tree_sexp(&self, id: &u32) -> String {
-        let item = self.trees.get(id);
-        if let Some(item) = item {
-            if let Some(tree) = item {
-                tree.root_node().to_sexp().to_owned()
-            } else {
-                "None".to_string()
-            }
+    pub fn get_tree_sexp(&self, id: &u32) -> Result<String, NotFoundError> {
+        let item = self
+            .trees
+            .get(id)
+            .ok_or_else(|| NotFoundError::TreeNotFoundError(id.clone()))?;
+        if let Some(tree) = item {
+            Ok(tree.root_node().to_sexp().to_owned())
         } else {
-            format!("Didn't found the item with the id : {}", id).to_string()
+            Ok("None".to_string())
         }
     }
 }
@@ -152,14 +198,18 @@ mod test {
         let source_code = file_manager.read_source_code_in_bytes(&id.0).unwrap();
         let file_mutex = file_manager._get_file(&id.0);
         if let Ok(file_mutex) = file_mutex {
-            parser_helper.append_tree(&id.0, file_mutex.clone());
+            parser_helper
+                .append_tree(&id.0, file_mutex.clone())
+                .unwrap();
             let mut file = file_mutex.lock().unwrap();
             file.update_source_code(&source_code);
-            parser_helper.update_tree(&id.0, None);
-            parser_helper.parse(&id.0, &file.language.clone().unwrap(), &file.source_code);
+            parser_helper.update_tree(&id.0, None).unwrap();
+            parser_helper
+                .parse(&id.0, &file.language.clone().unwrap(), &file.source_code)
+                .unwrap();
         }
 
-        assert_eq!(parser_helper.get_tree_sexp(&id.0),"(program (function_declaration name: (identifier) parameters: (formal_parameters) body: (statement_block (for_statement initializer: (lexical_declaration (variable_declarator name: (identifier) value: (number))) condition: (expression_statement (binary_expression left: (identifier) right: (number))) increment: (update_expression argument: (identifier)) body: (statement_block)))) (expression_statement (call_expression function: (identifier) arguments: (arguments))))");
+        assert_eq!(parser_helper.get_tree_sexp(&id.0).unwrap(),"(program (function_declaration name: (identifier) parameters: (formal_parameters) body: (statement_block (for_statement initializer: (lexical_declaration (variable_declarator name: (identifier) value: (number))) condition: (expression_statement (binary_expression left: (identifier) right: (number))) increment: (update_expression argument: (identifier)) body: (statement_block)))) (expression_statement (call_expression function: (identifier) arguments: (arguments))))");
     }
 
     #[test]
@@ -169,11 +219,15 @@ mod test {
         let id = file_manager.load_file("../../test_home/test.js").unwrap();
         let source_code = file_manager.read_source_code_in_bytes(&id.0).unwrap();
         let file_mutex = file_manager._get_file(&id.0).unwrap();
-        parser_helper.append_tree(&id.0, file_mutex.clone());
+        parser_helper
+            .append_tree(&id.0, file_mutex.clone())
+            .unwrap();
         let mut file = file_mutex.lock().unwrap();
         file.update_source_code(&source_code);
-        parser_helper.update_tree(&id.0, None);
-        parser_helper.parse(&id.0, &file.language.clone().unwrap(), &source_code);
+        parser_helper.update_tree(&id.0, None).unwrap();
+        parser_helper
+            .parse(&id.0, &file.language.clone().unwrap(), &source_code)
+            .unwrap();
         let source_code = b"console.log(Hello World);".to_vec();
 
         let input_edit = Some(ChangesRange {
@@ -185,7 +239,9 @@ mod test {
             new_end_position: CustomPoint::new(5, 14),
         });
         file.update_source_code(&source_code);
-        parser_helper.update_tree(&id.0, input_edit);
-        parser_helper.parse(&id.0, &file.language.clone().unwrap(), &source_code);
+        parser_helper.update_tree(&id.0, input_edit).unwrap();
+        parser_helper
+            .parse(&id.0, &file.language.clone().unwrap(), &source_code)
+            .unwrap();
     }
 }

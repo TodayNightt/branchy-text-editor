@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use tree_sitter::{Query, QueryCursor, Range, Tree};
 
+use crate::error::NotFoundError;
 use crate::{insert_to_hash_map, Lang};
 
 use super::get_query_from_each_language;
@@ -110,7 +111,6 @@ impl Token {
 
     pub fn remap_token_n_modifier(&mut self, index: (u32, u32)) {
         self.token_type = index.0;
-        println!("{}", index.1);
         self.modifier = index.1;
     }
 }
@@ -148,20 +148,26 @@ impl QueryManager {
         query_data.modified_legend.clone()
     }
 
-    pub fn get_unmodified_legend(&self, lang: &Lang) -> Arc<SemanticLegend> {
-        let query_data = self.0.get(&lang).unwrap();
-        query_data.legend.clone()
+    pub fn get_unmodified_legend(&self, lang: &Lang) -> Result<Arc<SemanticLegend>, NotFoundError> {
+        let query_data = self
+            .0
+            .get(&lang)
+            .ok_or_else(|| NotFoundError::QueryNotFoundError(lang.to_string()))?;
+        Ok(query_data.legend.clone())
     }
     pub fn iter_query(
         &self,
         tree: &Option<Tree>,
         language: &Lang,
         ranged_source_code: &Vec<u8>,
-    ) -> Vec<Token> {
+    ) -> Result<Vec<Token>, NotFoundError> {
         let mut data: Vec<Token> = vec![];
 
         if let Some(tree) = tree.as_ref() {
-            let query_data = self.0.get(&language).unwrap();
+            let query_data = self
+                .0
+                .get(&language)
+                .ok_or_else(|| NotFoundError::QueryNotFoundError(language.to_string()))?;
             let query = &query_data.query;
             let mut query_cursor = QueryCursor::new();
 
@@ -192,11 +198,19 @@ impl QueryManager {
             }
         }
 
-        data
+        Ok(data)
     }
 
-    pub fn sort_layer(&self, tokens: Vec<Token>, lang: &Lang) -> HighlightIter {
-        let query_data = self.0.get(&lang).unwrap();
+    pub fn sort_layer(
+        &self,
+        tokens: Vec<Token>,
+        lang: &Lang,
+    ) -> Result<HighlightIter, NotFoundError> {
+        let query_data = self
+            .0
+            .get(&lang)
+            .ok_or_else(|| NotFoundError::QueryNotFoundError(lang.to_string()))?;
+
         let local_scope_index = &query_data._local_scope;
         let local_reference_index = &query_data._local_reference;
         let local_definition_index = &query_data._local_definition;
@@ -265,14 +279,14 @@ impl QueryManager {
             .map(|token| token.to_owned())
             .collect();
 
-        HighlightIter::new(
+        Ok(HighlightIter::new(
             highlights_data,
             scope,
             local_definition,
             local_reference,
             query_data.legend.clone(),
             query_data.modified_legend.clone(),
-        )
+        ))
     }
 }
 
@@ -290,19 +304,29 @@ mod test {
         let id = file_manager.load_file("../../test_home/test.js").unwrap();
         let source_code = file_manager.read_source_code_in_bytes(&id.0).unwrap();
         let file_mutex = file_manager._get_file(&id.0);
-        let file_language = file_manager.get_file_language(&id.0);
-        file_manager.update_source_code(&id.0, &source_code);
+        let file_language = file_manager.get_file_language(&id.0).unwrap();
+        file_manager
+            .update_source_code_for_file(&id.0, &source_code)
+            .unwrap();
         if let Ok(file_mutex) = file_mutex {
-            parser_helper.append_tree(&id.0, file_mutex.clone());
-            parser_helper.update_tree(&id.0, None);
-            parser_helper.parse(&id.0, &file_language.clone().unwrap(), &source_code);
-            let tokens = query_analyser.iter_query(
-                &parser_helper.get_tree(&id.0),
-                &file_language.clone().unwrap(),
-                &source_code,
-            );
+            parser_helper
+                .append_tree(&id.0, file_mutex.clone())
+                .unwrap();
+            parser_helper.update_tree(&id.0, None).unwrap();
+            parser_helper
+                .parse(&id.0, &file_language.clone().unwrap(), &source_code)
+                .unwrap();
+            let tokens = query_analyser
+                .iter_query(
+                    &parser_helper.get_tree(&id.0).unwrap(),
+                    &file_language.clone().unwrap(),
+                    &source_code,
+                )
+                .unwrap();
 
-            let result = query_analyser.sort_layer(tokens, &file_language.clone().unwrap());
+            let result = query_analyser
+                .sort_layer(tokens, &file_language.clone().unwrap())
+                .unwrap();
 
             // println!("{:?}", query_analyser.get_legend(&crate::Lang::Javascript));
             println!("{:#2?}", result);

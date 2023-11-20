@@ -7,14 +7,18 @@ import {
   invokeSaveFile,
 } from "../../../backendApi/invocation";
 
-import { getLanguageThemeIfAnyElseDefault } from "../../../backendApi/stateStore";
-import { OpenFile } from "../../../backendApi/bindings";
+import {
+  OpenFileTab,
+  getLanguageThemeIfAnyElseDefault,
+} from "../../../backendApi/stateStore";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 // @ts-ignore
 import styles from "./styles.module.scss";
+import { registerSemanticTokenProvider } from "./tokenProvider";
 
-const Editor: Component<{ fileInfo: OpenFile }> = (props) => {
-  const fileInfo = props.fileInfo;
+const Editor: Component<{ tabs: OpenFileTab }> = (props) => {
+  const fileInfo = props.tabs.fileInfo;
+  let editor = props.tabs.editor;
   const id = fileInfo.id;
   const language = fileInfo.language!;
   const [currentEndPosition, setCurrentEndPosition] = createSignal({
@@ -64,17 +68,19 @@ const Editor: Component<{ fileInfo: OpenFile }> = (props) => {
         },
         new_end_position: { row: endLine, column: endColumn },
       },
-      editor.getValue()!
+      editor?.getValue()!
     );
 
     setCurrentEndPosition({ row: endLine, col: endColumn });
   };
 
   let editorEl!: HTMLDivElement;
-  let editor: monaco.editor.IStandaloneCodeEditor;
 
   onMount(async () => {
-    const lang = language.toLowerCase();
+    let lang = "plaintext";
+    if (language) {
+      lang = language.toLowerCase();
+    }
     //Create a Theme based on the get_theme_api
     const rules = getLanguageThemeIfAnyElseDefault(lang).rules;
     monaco.editor.defineTheme("custom", {
@@ -118,39 +124,10 @@ const Editor: Component<{ fileInfo: OpenFile }> = (props) => {
       },
     });
 
-    //Create A SemanticTokenProvider
-    const legend = await invokeGetTokensLegend(language)!;
-    monaco.languages.registerDocumentRangeSemanticTokensProvider(langId, {
-      getLegend() {
-        return {
-          tokenTypes: legend!._token_types,
-          tokenModifiers: [""],
-        };
-      },
-      //@ts-ignore
-      provideDocumentRangeSemanticTokens: async function (
-        model,
-        range,
-        _token
-      ) {
-        const rangedSourceCode = model.getValueInRange(range);
 
-        const data = await invokeHighlights(id, rangedSourceCode);
-
-        for (let i = 3; i < data.length; i += 5) {
-          console.log(
-            `(${data[i - 3]},${data[i - 2]}) length: ${data[i - 1]} ${
-              this.getLegend().tokenTypes[data[i]]
-            }`
-          );
-        }
-
-        return {
-          data: new Uint32Array(data),
-          resultId: null,
-        };
-      },
-    });
+    if (language) {
+      await registerSemanticTokenProvider(language, id, langId);
+    }
 
     //Initialize the currentEndPosition for the tree-sitter parsing
     const range = editor.getModel()?.getFullModelRange();
@@ -162,7 +139,9 @@ const Editor: Component<{ fileInfo: OpenFile }> = (props) => {
     // Handle the on change event
     editor.onDidChangeModelContent((e) => handleChange(e));
   });
-  onCleanup(() => editor?.dispose());
+  onCleanup(() => {
+    editor?.getModel()?.dispose();
+  });
   return <div class={styles.editor} ref={editorEl}></div>;
 };
 

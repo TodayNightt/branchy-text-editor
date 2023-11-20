@@ -25,7 +25,8 @@ fn main() {
             get_current_language_theme,
             get_editor_config,
             get_tokens_legend,
-            set_highlights
+            set_highlights,
+            get_currently_supported_language
         ],
         "../src/backendApi/bindings.ts",
     )
@@ -43,7 +44,8 @@ fn main() {
             get_current_language_theme,
             get_editor_config,
             get_tokens_legend,
-            set_highlights
+            set_highlights,
+            get_currently_supported_language
         ])
         .setup(|app| {
             app.manage(StateManager::new());
