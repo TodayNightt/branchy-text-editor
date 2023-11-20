@@ -10,19 +10,28 @@ import {
   Theme,
   LanguageTheme,
   EditorTheme,
+  Lang,
+  getCurrentlySupportedLanguage,
 } from "./bindings";
 import { catchIfAny } from "./invocation";
+import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 
 type EditorConfig = {
   editorTheme: EditorTheme;
   languageTheme: LanguageTheme;
 };
 
+export type OpenFileTab = {
+  fileInfo: OpenFile;
+  editor: monaco.editor.IStandaloneCodeEditor | null;
+};
+
 type Store = {
   fileSystem: FileSystemInfo;
-  openedFile: Array<OpenFile>;
+  openedFile: Array<OpenFileTab>;
   selectedFile: string;
   editorConfig?: EditorConfig;
+  supportedLanguage: Array<Lang>;
 };
 
 const [store, setStore] = createStore<Store>({
@@ -33,6 +42,7 @@ const [store, setStore] = createStore<Store>({
   openedFile: [],
   selectedFile: "",
   editorConfig: undefined,
+  supportedLanguage: [],
 });
 
 export const invokeChangeDir = async (dir: string | null) => {
@@ -60,8 +70,21 @@ export const changeSelected = (value: string) => {
 };
 
 export const invokeCloseFile = async (id: number) => {
-  await catchIfAny(closeFile(id));
-  setStore("openedFile", (prev) => prev.filter((item) => item.id != id));
+  console.log("Closing file with id:", id);
+  console.log("Opened files:", store.openedFile);
+
+  let item = store.openedFile.find((item) => item.fileInfo.id === id);
+  console.log("Found item:", item);
+
+  if (item) {
+    item.editor?.dispose();
+    await catchIfAny(closeFile(id));
+    setStore("openedFile", (prev) =>
+      prev.filter((item) => item.fileInfo.id !== id)
+    );
+  } else {
+    console.warn(`File with id ${id} not found in openedFile array.`);
+  }
 };
 
 export const invokeReset = async () => {
@@ -84,6 +107,11 @@ export const getLanguageThemeIfAnyElseDefault = (language: string): Theme => {
     return languageTheme[language];
   }
   return languageTheme.default;
+};
+
+export const invokeGetCurrentlySupportedLanguage = async () => {
+  const res = await catchIfAny(getCurrentlySupportedLanguage());
+  if (res) setStore("supportedLanguage", res);
 };
 
 export { store };

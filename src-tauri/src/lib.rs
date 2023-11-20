@@ -125,6 +125,10 @@ impl FileManager {
         }
     }
 
+    pub fn file_exists(&self, id: &u32) -> bool {
+        self.files.contains_key(id)
+    }
+
     pub fn close_file(&mut self, id: &u32) {
         self.files.as_mut().remove_entry(id);
     }

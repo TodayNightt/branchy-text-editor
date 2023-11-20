@@ -1,13 +1,17 @@
 import "./App.css";
 import FileExplorer from "./component/fileExplorer/fileExplorer";
 import TextEditor from "./component/textEditor/textEditor";
-import { invokeGetEditorConfig } from "./backendApi/stateStore";
+import {
+  invokeGetCurrentlySupportedLanguage,
+  invokeGetEditorConfig,
+} from "./backendApi/stateStore";
 
 import { ParentComponent, onMount } from "solid-js";
 
 const App: ParentComponent = () => {
   onMount(() => {
     invokeGetEditorConfig();
+    invokeGetCurrentlySupportedLanguage();
   });
 
   return (

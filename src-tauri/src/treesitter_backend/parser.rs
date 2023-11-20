@@ -74,6 +74,10 @@ impl Default for ParserHelper {
 }
 
 impl ParserHelper {
+    pub fn currently_supported_language(&self) -> Vec<Lang> {
+        self.parsers.keys().map(|lang| lang.to_owned()).collect()
+    }
+
     pub fn append_tree(&mut self, id: &u32, file: Arc<Mutex<OpenedFile>>) {
         let file = file.lock().unwrap();
         if file.language.is_some() {

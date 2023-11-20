@@ -1,4 +1,4 @@
-import { Component, For, JSX } from "solid-js";
+import { Component, For, JSX, onCleanup } from "solid-js";
 // @ts-ignore
 import styles from "./styles.module.scss";
 import "./userWorker";
@@ -24,6 +24,8 @@ const TextEditor: Component = () => {
     invokeReset();
   };
 
+  onCleanup(() => console.log("textEditor"));
+
   return (
     <div class={styles.container}>
       <div id={styles["reset-btn-div"]}>
@@ -35,11 +37,16 @@ const TextEditor: Component = () => {
         <Tabs.List>
           <For each={store.openedFile}>
             {(file) => (
-              <Tabs.Trigger value={file.name}>
+              <Tabs.Trigger value={file.fileInfo.name}>
                 <div>
-                  <div>{file.same_name_exist ? file.path : null}</div>
-                  {file.name}
-                  <Button.Root id={file.id.toString()} onClick={closeFile}>
+                  <div>
+                    {file.fileInfo.same_name_exist ? file.fileInfo.path : null}
+                  </div>
+                  {file.fileInfo.name}
+                  <Button.Root
+                    id={file.fileInfo.id.toString()}
+                    onClick={closeFile}
+                  >
                     &#9747;
                   </Button.Root>
                 </div>
@@ -50,8 +57,8 @@ const TextEditor: Component = () => {
         </Tabs.List>
         <For each={store.openedFile}>
           {(file) => (
-            <Tabs.Content value={file.name}>
-              <Editor fileInfo={file} />
+            <Tabs.Content value={file.fileInfo.name}>
+              <Editor tabs={file} />
             </Tabs.Content>
           )}
         </For>

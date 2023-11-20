@@ -73,6 +73,9 @@ pub fn set_highlights(
     ranged_source_code: String,
 ) -> Result<Vec<u32>, String> {
     let file_manager = state.file_manager.lock().unwrap();
+    if !file_manager.file_exists(&id) {
+        return Ok(vec![]);
+    }
     let parser_helper = state.parser_helper.lock().unwrap();
     let source_code_in_bytes = ranged_source_code.into_bytes();
     let query_iter = &state.query_iter;

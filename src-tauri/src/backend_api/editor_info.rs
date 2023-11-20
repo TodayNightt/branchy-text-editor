@@ -41,3 +41,10 @@ pub fn get_tokens_legend(
 
     Ok(query_iter.get_legend(&lang).deref().to_owned())
 }
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_currently_supported_language(state: tauri::State<StateManager>) -> Vec<Lang> {
+    let parser_helper = state.parser_helper.lock().unwrap();
+    parser_helper.currently_supported_language()
+}
