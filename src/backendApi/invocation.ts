@@ -7,6 +7,7 @@ import {
   setHighlights,
   SemanticLegend,
   getTokensLegend,
+  RangePoint,
 } from "./bindings";
 import { showToast } from "../component/notification_toast/toast";
 
@@ -53,9 +54,10 @@ export const invokeGetTokensLegend = async (
 
 export const invokeHighlights = async (
   id: number,
-  ranged_source_code: string
+  ranged_source_code: string,
+  range: RangePoint
 ): Promise<number[]> => {
-  const data = await catchIfAny(setHighlights(id, ranged_source_code));
+  const data = await catchIfAny(setHighlights(id, ranged_source_code, range));
   if (data) return data;
   return [];
 };

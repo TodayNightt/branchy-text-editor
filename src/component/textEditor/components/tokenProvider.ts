@@ -13,7 +13,7 @@ export async function registerSemanticTokenProvider(
 ) {
   if (store.supportedLanguage.find((val) => val === language)) {
     const legend = await invokeGetTokensLegend(language)!;
-    monaco.languages.registerDocumentRangeSemanticTokensProvider(langId, {
+    return monaco.languages.registerDocumentSemanticTokensProvider(langId, {
       getLegend() {
         return {
           tokenTypes: legend!._token_types,
@@ -21,14 +21,28 @@ export async function registerSemanticTokenProvider(
         };
       },
       //@ts-ignore
-      provideDocumentRangeSemanticTokens: async function (
+      provideDocumentSemanticTokens: async function (
         model,
-        range,
+        _lastResultId,
         _token
       ) {
-        const rangedSourceCode = model.getValueInRange(range);
+        // const rangedSourceCode = model.getValueInRange(range);
+        const rangedSourceCode = model.getValue();
+        const range = model.getFullModelRange();
 
-        const data = await invokeHighlights(id, rangedSourceCode);
+        // console.log([
+        //   range.startLineNumber - 1,
+        //   range.startColumn - 1,
+        //   range.endLineNumber - 1,
+        //   range.endColumn - 1,
+        // ]);
+
+        const data = await invokeHighlights(id, rangedSourceCode, [
+          range.startLineNumber - 1,
+          range.startColumn - 1,
+          range.endLineNumber - 1,
+          range.endColumn - 1,
+        ]);
 
         // for (let i = 3; i < data.length; i += 5) {
         //   console.log(
@@ -43,6 +57,7 @@ export async function registerSemanticTokenProvider(
           resultId: null,
         };
       },
+      releaseDocumentSemanticTokens: function (_resultId) {},
     });
   }
 }

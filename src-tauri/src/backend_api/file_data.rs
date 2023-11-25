@@ -1,6 +1,6 @@
 use crate::{
     error::{Error, FileError, MutexLockError},
-    treesitter_backend::{highlighter::MonacoHighlights, parser::ChangesRange},
+    treesitter_backend::{highlighter::MonacoHighlights, parser::ChangesRange, query::RangePoint},
     StateManager,
 };
 
@@ -20,11 +20,10 @@ pub fn get_source_code_if_any(
         .map_err(|err| MutexLockError(err.to_string()))?;
 
     let source_code = file_manager.read_source_code_in_bytes(&id)?;
-    let file_mutex = file_manager._get_file(&id)?;
     let file_language = file_manager.get_file_language(&id)?;
     if file_language.is_some() {
         if parser_helper.parser_exist(&file_language.clone().unwrap()) {
-            parser_helper.append_tree(&id, file_mutex.clone())?;
+            parser_helper.append_tree(&id, file_language.clone())?;
             parser_helper.parse(&id, &file_language.unwrap(), &source_code)?;
         }
     }
@@ -44,7 +43,7 @@ pub fn reset(state: tauri::State<StateManager>) -> Result<(), Error> {
         .file_manager
         .try_lock()
         .map_err(|err| MutexLockError(err.to_string()))?;
-    file_manager.files.as_mut().clear();
+    file_manager.clear();
     Ok(())
 }
 
@@ -94,6 +93,7 @@ pub fn set_highlights(
     state: tauri::State<StateManager>,
     id: u32,
     ranged_source_code: String,
+    range: RangePoint,
 ) -> Result<Vec<u32>, Error> {
     let file_manager = state
         .file_manager
@@ -106,15 +106,17 @@ pub fn set_highlights(
         .parser_helper
         .try_lock()
         .map_err(|err| MutexLockError(err.to_string()))?;
-    let source_code_in_bytes = ranged_source_code.into_bytes();
+    let source_code_in_bytes = ranged_source_code.as_bytes().to_vec();
     let query_iter = &state.query_iter;
     let file_language = file_manager.get_file_language(&id)?;
+
     match file_language {
         Some(language) => {
-            let tokens = query_iter.iter_query(
+            let tokens = query_iter.iter_query_with_range(
                 &parser_helper.get_tree(&id)?,
                 &language.clone(),
                 &source_code_in_bytes,
+                range,
             )?;
 
             let mut token_data = query_iter.sort_layer(tokens, &language)?;

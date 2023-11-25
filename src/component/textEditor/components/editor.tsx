@@ -1,9 +1,7 @@
 import { Component, createSignal, onCleanup, onMount } from "solid-js";
 import {
   invokeGetSourceCode,
-  invokeGetTokensLegend,
   invokeHandleFileChanges,
-  invokeHighlights,
   invokeSaveFile,
 } from "../../../backendApi/invocation";
 
@@ -12,13 +10,14 @@ import {
   getLanguageThemeIfAnyElseDefault,
 } from "../../../backendApi/stateStore";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
-// @ts-ignore
-import styles from "./styles.module.scss";
 import { registerSemanticTokenProvider } from "./tokenProvider";
+// @ts-ignore
+import styles from "../styles.module.scss";
 
 const Editor: Component<{ tabs: OpenFileTab }> = (props) => {
   const fileInfo = props.tabs.fileInfo;
   let editor = props.tabs.editor;
+  let registration: monaco.IDisposable | undefined;
   const id = fileInfo.id;
   const language = fileInfo.language!;
   const [currentEndPosition, setCurrentEndPosition] = createSignal({
@@ -124,9 +123,17 @@ const Editor: Component<{ tabs: OpenFileTab }> = (props) => {
       },
     });
 
+    editor.addAction({
+      id: "comment",
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Slash],
+      label: "",
+      run: function (editor, ...args): void | Promise<void> {
+        handleKey(Action.Comment, editor);
+      },
+    });
 
     if (language) {
-      await registerSemanticTokenProvider(language, id, langId);
+      registration = await registerSemanticTokenProvider(language, id, langId);
     }
 
     //Initialize the currentEndPosition for the tree-sitter parsing
@@ -141,6 +148,7 @@ const Editor: Component<{ tabs: OpenFileTab }> = (props) => {
   });
   onCleanup(() => {
     editor?.getModel()?.dispose();
+    registration?.dispose();
   });
   return <div class={styles.editor} ref={editorEl}></div>;
 };
