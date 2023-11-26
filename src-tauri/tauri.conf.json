@@ -7,21 +7,36 @@
     "withGlobalTauri": false
   },
   "package": {
-    "productName": "Tautex",
+    "productName": "branchy",
     "version": "0.0.0"
   },
   "tauri": {
     "allowlist": {
       "all": false,
-      "shell": {
+      "window": {
         "all": false,
-        "open": true
+        "close": true,
+        "hide": true,
+        "show": true,
+        "maximize": true,
+        "minimize": true,
+        "unmaximize": true,
+        "unminimize": true,
+        "startDragging": true
+      },
+      "dialog": {
+        "all": true,
+        "ask": true,
+        "confirm": true,
+        "message": true,
+        "open": true,
+        "save": true
       }
     },
     "bundle": {
       "active": true,
       "targets": "all",
-      "identifier": "com.editor.tautex",
+      "identifier": "com.editor.branchy",
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",
