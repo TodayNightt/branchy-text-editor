@@ -67,7 +67,7 @@ impl Default for ParserHelper {
         insert_to_hash_map!(parser parsers, Lang::Rust);
         insert_to_hash_map!(parser parsers, Lang::Html);
         insert_to_hash_map!(parser parsers, Lang::Json);
-    insert_to_hash_map!(parser parsers, Lang::Java);
+        insert_to_hash_map!(parser parsers, Lang::Java);
         Self {
             parsers: parsers,
             trees: HashMap::default(),
@@ -112,6 +112,7 @@ impl ParserHelper {
         if let Some(mut tree) = tree_option.take() {
             // Update the tree if tree = Some(tree) AND input = Some(input_edit)
             if let Some(input_edit) = input_edit {
+                println!("{:?}", input_edit);
                 tree.edit(&input_edit.into());
             }
             *tree_option = Some(tree);

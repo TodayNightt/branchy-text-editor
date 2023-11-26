@@ -29,7 +29,7 @@ pub fn get_file_system_info(dir: Option<String>) -> Result<FileSystemInfo, Error
         ));
     }
     let home_dir = home_dir().unwrap().absolutize().unwrap().to_path_buf();
-    let directory_items = get_directory_items(&home_dir, 4)?;
+    let directory_items = get_directory_items(&home_dir, 2)?;
     Ok(FileSystemInfo::create(
         home_dir
             .into_os_string()

@@ -30,7 +30,6 @@ pub fn get_query_from_each_language(language: &Lang) -> String {
         // Lang::Typescript => {
         //     query_combine.push_str(tree_sitter_typescript::HIGHLIGHT_QUERY);
         // }
-        // FIXME : Java have some bugs that is will crash the program of error range out of bound in query part
         Lang::Java => {
             query_combine.push_str(tree_sitter_java::HIGHLIGHT_QUERY);
         }

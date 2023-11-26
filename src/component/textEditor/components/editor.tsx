@@ -46,13 +46,19 @@ const Editor: Component<{ tabs: OpenFileTab }> = (props) => {
   const handleChange = async (e: monaco.editor.IModelContentChangedEvent) => {
     let change = e.changes[0];
 
-    const startLine = change.range.startLineNumber;
-    const startColumn = change.range.startColumn;
-    const endLine = change.range.endLineNumber;
-    const endColumn = change.range.endColumn;
+    const startLine =
+      change.range.startLineNumber === 0 ? 0 : change.range.startLineNumber - 1;
+    const startColumn =
+      change.range.startColumn === 0 ? 0 : change.range.startColumn - 1;
+    const endLine =
+      change.range.endLineNumber === 0 ? 0 : change.range.endLineNumber - 1;
+    const endColumn =
+      change.range.endColumn === 0 ? 0 : change.range.endColumn - 1;
 
     const startByte = change.rangeOffset;
     const endByte = startByte + change.text.length;
+
+    console.log(change);
 
     await invokeHandleFileChanges(
       id,
