@@ -55,7 +55,7 @@ export const invokeChangeDir = async (dir: string | null) => {
 export const invokeOpenFile = async (path: string) => {
   const exist = store.openedFile.find((item) => item.fileInfo.path == path);
   if (exist) {
-    setStore("selectedFile", exist.fileInfo.name);
+    setStore("selectedFile", exist.fileInfo.path);
     return;
   }
   const file = await catchIfAny(openFile(path));
@@ -64,7 +64,7 @@ export const invokeOpenFile = async (path: string) => {
       ...prev,
       { fileInfo: file, editor: null },
     ]);
-    setStore("selectedFile", file.name);
+    setStore("selectedFile", file.path);
   }
 };
 
@@ -102,9 +102,10 @@ export const invokeGetEditorConfig = async () => {
   setStore("editorConfig", { editorTheme, languageTheme });
 };
 
+// @ts-ignore
 export const getLanguageThemeIfAnyElseDefault = (language: string): Theme => {
   const languageTheme: LanguageTheme = store.editorConfig?.languageTheme!;
-  // @ts-ignore
+  //@ts-ignore
   if (languageTheme[language]) {
     // @ts-ignore
     return languageTheme[language];

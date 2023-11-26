@@ -12,7 +12,7 @@ import {
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 import { registerSemanticTokenProvider } from "./tokenProvider";
 // @ts-ignore
-import styles from "../styles.module.scss";
+import styles from "../styles.module.css";
 
 const Editor: Component<{ tabs: OpenFileTab }> = (props) => {
   const fileInfo = props.tabs.fileInfo;
@@ -31,12 +31,12 @@ const Editor: Component<{ tabs: OpenFileTab }> = (props) => {
 
   const handleKey = async (
     action: Action,
-    _model?: monaco.editor.ITextModel
+    _editor?: monaco.editor.ICodeEditor
   ) => {
     switch (action) {
       case Action.Save:
         console.log("saving");
-        await invokeSaveFile(props.fileInfo.id);
+        await invokeSaveFile(fileInfo.id);
         break;
       default:
         console.log("Verify Not Reached");
@@ -105,6 +105,8 @@ const Editor: Component<{ tabs: OpenFileTab }> = (props) => {
         automaticLayout: true,
         theme: "custom",
         "semanticHighlighting.enabled": true,
+        folding: false,
+        minimap: { enabled: false },
       });
     }
 
@@ -120,15 +122,6 @@ const Editor: Component<{ tabs: OpenFileTab }> = (props) => {
         ...args: any[]
       ): void | Promise<void> {
         handleKey(Action.Save);
-      },
-    });
-
-    editor.addAction({
-      id: "comment",
-      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Slash],
-      label: "",
-      run: function (editor, ...args): void | Promise<void> {
-        handleKey(Action.Comment, editor);
       },
     });
 

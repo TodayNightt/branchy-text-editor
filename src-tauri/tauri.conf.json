@@ -52,7 +52,9 @@
       {
         "fullscreen": false,
         "resizable": true,
-        "title": "tauri-text-editor",
+        "decorations": false,
+        "transparent": true,
+        "title": "branchy-text-editor",
         "width": 800,
         "height": 600
       }

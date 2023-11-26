@@ -7,9 +7,9 @@ import {
 } from "./backendApi/stateStore";
 
 import { ParentComponent, onMount } from "solid-js";
-import { Button, Toast } from "@kobalte/core";
+import { Toast } from "@kobalte/core";
 import { Portal } from "solid-js/web";
-import { showToast } from "./component/notification_toast/toast";
+import Menu from "./component/menu/menu";
 
 const App: ParentComponent = () => {
   onMount(() => {
@@ -19,14 +19,10 @@ const App: ParentComponent = () => {
 
   return (
     <>
+      <Menu />
       <FileExplorer />
       <TextEditor />
 
-      {/* <a href="https://www.freepik.com/icon/magic-wand_2145127">
-        Icon by ultimatearm
-      </a> */}
-
-      <Button.Root onClick={showToast}>A</Button.Root>
       <Portal>
         <Toast.Region>
           <Toast.List class="toast__list" />
