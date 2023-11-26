@@ -188,8 +188,6 @@ mod test {
     use crate::treesitter_backend::query::QueryManager;
     use crate::{treesitter_backend::parser::ParserHelper, FileManager};
 
-    use crate::treesitter_backend::theme::ThemeConfig;
-
     use super::MonacoHighlights;
 
     #[test]
@@ -199,10 +197,9 @@ mod test {
         let query_iter = QueryManager::default();
         let id = file_manager.load_file("../../test_home/test.js").unwrap();
         let source_code = file_manager.read_source_code_in_bytes(&id.0).unwrap();
-        let file_mutex = file_manager._get_file(&id.0);
         let file_language = &file_manager.get_file_language(&id.0).unwrap().clone();
         parser_helper
-            .append_tree(&id.0, file_mutex.unwrap().clone())
+            .append_tree(&id.0, file_language.clone())
             .unwrap();
         file_manager
             .update_source_code_for_file(&id.0, &source_code)
@@ -228,22 +225,5 @@ mod test {
         // println!("{:#1?}", &highlights);
 
         let _result = MonacoHighlights::emit(&highlights);
-    }
-
-    #[test]
-    fn check_loading_config_file() {
-        let config = ThemeConfig::load("../../test_home/config.json");
-
-        dbg!(&config);
-        if let Ok(config) = config {
-            println!("{}", config);
-        }
-    }
-
-    #[test]
-    fn save_config_file() {
-        let config = ThemeConfig::default();
-
-        config.save();
     }
 }

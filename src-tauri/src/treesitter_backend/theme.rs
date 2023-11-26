@@ -1,7 +1,9 @@
-use std::{error::Error, fmt::Display, fs::File, io::BufReader, sync::Mutex};
+use std::marker::PhantomData;
 
 use serde::{Deserialize, Serialize};
 use specta::Type;
+
+// use crate::language::Lang;
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default, Type)]
 pub struct Token {
@@ -19,87 +21,97 @@ impl Token {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Type)]
-pub struct Theme {
-    rules: Vec<Token>, // keyword: String,
-                       // function: String,
-                       // types: String,
-                       // variable: String,
-                       // number: String,
-                       // string: String,
+pub struct Theme<T> {
+    rules: Vec<Token>,
+    #[serde(skip)]
+    shadow_data: std::marker::PhantomData<T>,
 }
 
-impl Default for Theme {
-    fn default() -> Self {
-        let mut rules = vec![];
-        rules.push(Token::new("keyword", "#DD91FA"));
-        rules.push(Token::new("function", "#71B1FF"));
-        rules.push(Token::new("type", "#DCAE80"));
-        rules.push(Token::new("variable", "#9CDCFE"));
-        rules.push(Token::new("number", "#b4d5ff"));
-        rules.push(Token::new("string", "#72c0ff"));
-        rules.push(Token::new("comment", "#93d0ff"));
-        rules.push(Token::new("class", "#D1B9FF"));
-        Self { rules }
-    }
-}
+macro_rules! define {
+    // Define all the struct
+    ($($token : ident),*)=>{
+        $(
+            #[derive(Debug,Clone,Serialize,Type)]
+            struct $token;
+        )*
+    };
 
-#[derive(Deserialize, Serialize, Debug, Default, Clone, Type)]
-pub struct EditorTheme {
-    background: String,
-}
+    // implement the default implementation for the type structs
+    ($theme_type : ident ,$([$token : expr , $color:expr]),* ) => {
+        impl Default for Theme<$theme_type> {
+            fn default()-> Self{
+                let rules = vec![
+                    $((String::from($token),String::from($color))),*
+                ];
 
-// NOTE : We can use generic instead of field for each language
-//        Because some language have unique token types
-#[derive(Deserialize, Serialize, Debug, Clone, Type)]
-pub struct LanguageTheme {
-    default: Theme,
-    javascript: Option<Theme>,
-    rust: Option<Theme>,
-    java: Option<Theme>,
-    html: Option<Theme>,
-    css: Option<Theme>,
-    python: Option<Theme>,
-    ruby: Option<Theme>,
-}
+                let rules = rules.into_iter().map(|(token,color)| Token::new(&token,&color)).collect();
 
-impl Default for LanguageTheme {
-    fn default() -> Self {
-        Self {
-            default: Theme::default(),
-            javascript: None,
-            rust: None,
-            java: None,
-            html: None,
-            css: None,
-            python: None,
-            ruby: None,
+                Self{
+                    rules,
+                    shadow_data: PhantomData
+                }
+            }
         }
-    }
+    };
 }
 
-#[derive(Deserialize, Serialize, Debug, Default)]
-pub struct ThemeConfig {
-    pub language: Mutex<LanguageTheme>,
-    pub editor: Mutex<EditorTheme>,
+define!(Basic, Javascript, Rust, Java, Html, Css, Python, Ruby);
+
+define!(
+    Basic,
+    ["keyword", "#DD91FA"],
+    ["function", "#71B1FF"],
+    ["type", "#DCAE80"],
+    ["variable", "#9CDCFE"],
+    ["number", "#b4d5ff"],
+    ["string", "#72c0ff"],
+    ["comment", "#93d0ff"],
+    ["class", "#D1B9FF"]
+);
+define!(
+    Javascript,
+    ["keyword", "#DD91FA"],
+    ["function", "#71B1FF"],
+    ["type", "#DCAE80"],
+    ["variable", "#9CDCFE"],
+    ["number", "#b4d5ff"],
+    ["string", "#72c0ff"],
+    ["comment", "#93d0ff"],
+    ["class", "#D1B9FF"],
+    ["local", "#aaaaaa"]
+);
+define!(
+    Rust,
+    ["keyword", "#DD91FA"],
+    ["function", "#71B1FF"],
+    ["type", "#DCAE80"],
+    ["variable", "#9CDCFE"],
+    ["number", "#b4d5ff"],
+    ["string", "#72c0ff"],
+    ["comment", "#93d0ff"],
+    ["class", "#D1B9FF"],
+    ["macro", "#BEB7FF"],
+    ["struct", "#5DC9B3"]
+);
+
+#[derive(Deserialize, Serialize, Debug, Clone, Type, Default)]
+pub struct LanguageTheme {
+    default: Theme<Basic>,
+    javascript: Option<Theme<Javascript>>,
+    rust: Option<Theme<Rust>>,
+    java: Option<Theme<Java>>,
+    html: Option<Theme<Html>>,
+    css: Option<Theme<Css>>,
+    python: Option<Theme<Python>>,
+    ruby: Option<Theme<Ruby>>,
 }
 
-impl ThemeConfig {
-    pub fn load(path: &str) -> Result<Self, Box<dyn Error>> {
-        let file = File::open(path)?;
-        let reader = BufReader::new(file);
-
-        // Read the JSON contents of the file as an instance of `User`.
-        Ok(serde_json::from_reader(reader)?)
-    }
-
-    pub fn save(&self) {
-        let json = serde_json::to_string(self).expect("Cannot serialize");
-        std::fs::write("../../test_home/config.json", json).expect("Cannot save config file");
-    }
-}
-
-impl Display for ThemeConfig {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", serde_json::to_string_pretty(&self).unwrap())
+impl LanguageTheme {
+    pub fn set_default(&mut self, language: String) {
+        match language.as_str() {
+            "javascript" => self.javascript = Some(Theme::default()),
+            "rust" => self.rust = Some(Theme::default()),
+            _ => {}
+        };
     }
 }

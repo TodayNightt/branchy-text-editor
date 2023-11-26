@@ -9,8 +9,6 @@ use tauri_text_editor::{
     StateManager,
 };
 
-use std::path::PathBuf;
-
 fn main() {
     #[cfg(debug_assertions)]
     ts::export(
@@ -48,9 +46,10 @@ fn main() {
             get_currently_supported_language
         ])
         .setup(|app| {
-            app.manage(StateManager::new());
             let app_handle = app.handle();
-
+            let config_dir = app_handle.path_resolver().app_local_data_dir();
+            let state_manager = StateManager::new(config_dir)?;
+            app_handle.manage(state_manager);
             Ok(())
         })
         .run(tauri::generate_context!())

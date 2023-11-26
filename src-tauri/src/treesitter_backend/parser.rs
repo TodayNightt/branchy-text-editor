@@ -1,11 +1,9 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::collections::HashMap;
 
 use crate::{
     error::{MutexLockError, NotFoundError},
-    insert_to_hash_map, Lang, OpenedFile,
+    insert_to_hash_map,
+    language::Lang,
 };
 
 use derivative::Derivative;
@@ -69,6 +67,7 @@ impl Default for ParserHelper {
         insert_to_hash_map!(parser parsers, Lang::Rust);
         insert_to_hash_map!(parser parsers, Lang::Html);
         insert_to_hash_map!(parser parsers, Lang::Json);
+    insert_to_hash_map!(parser parsers, Lang::Java);
         Self {
             parsers: parsers,
             trees: HashMap::default(),
@@ -92,12 +91,9 @@ impl ParserHelper {
     pub fn append_tree(
         &mut self,
         id: &u32,
-        file: Arc<Mutex<OpenedFile>>,
+        file_language: Option<Lang>,
     ) -> Result<(), MutexLockError> {
-        let file = file
-            .try_lock()
-            .map_err(|err| MutexLockError(err.to_string()))?;
-        if file.language.is_some() {
+        if file_language.is_some() {
             let id = id.clone();
             self.trees.insert(id, None);
         }
@@ -196,18 +192,21 @@ mod test {
         let mut file_manager = FileManager::new();
         let id = file_manager.load_file("../../test_home/test.js").unwrap();
         let source_code = file_manager.read_source_code_in_bytes(&id.0).unwrap();
-        let file_mutex = file_manager._get_file(&id.0);
-        if let Ok(file_mutex) = file_mutex {
-            parser_helper
-                .append_tree(&id.0, file_mutex.clone())
-                .unwrap();
-            let mut file = file_mutex.lock().unwrap();
-            file.update_source_code(&source_code);
-            parser_helper.update_tree(&id.0, None).unwrap();
-            parser_helper
-                .parse(&id.0, &file.language.clone().unwrap(), &file.source_code)
-                .unwrap();
-        }
+        let file_language = file_manager.get_file_language(&id.0).unwrap();
+        parser_helper
+            .append_tree(&id.0, file_language.clone())
+            .unwrap();
+        file_manager
+            .update_source_code_for_file(&id.0, &source_code)
+            .unwrap();
+        parser_helper.update_tree(&id.0, None).unwrap();
+        parser_helper
+            .parse(
+                &id.0,
+                &file_language.clone().unwrap(),
+                &file_manager.get_source_code_from_file(&id.0).unwrap(),
+            )
+            .unwrap();
 
         assert_eq!(parser_helper.get_tree_sexp(&id.0).unwrap(),"(program (function_declaration name: (identifier) parameters: (formal_parameters) body: (statement_block (for_statement initializer: (lexical_declaration (variable_declarator name: (identifier) value: (number))) condition: (expression_statement (binary_expression left: (identifier) right: (number))) increment: (update_expression argument: (identifier)) body: (statement_block)))) (expression_statement (call_expression function: (identifier) arguments: (arguments))))");
     }
@@ -218,15 +217,16 @@ mod test {
         let mut file_manager = FileManager::new();
         let id = file_manager.load_file("../../test_home/test.js").unwrap();
         let source_code = file_manager.read_source_code_in_bytes(&id.0).unwrap();
-        let file_mutex = file_manager._get_file(&id.0).unwrap();
+        let file_language = file_manager.get_file_language(&id.0).unwrap();
         parser_helper
-            .append_tree(&id.0, file_mutex.clone())
+            .append_tree(&id.0, file_language.clone())
             .unwrap();
-        let mut file = file_mutex.lock().unwrap();
-        file.update_source_code(&source_code);
+        file_manager
+            .update_source_code_for_file(&id.0, &source_code)
+            .unwrap();
         parser_helper.update_tree(&id.0, None).unwrap();
         parser_helper
-            .parse(&id.0, &file.language.clone().unwrap(), &source_code)
+            .parse(&id.0, &file_language.clone().unwrap(), &source_code)
             .unwrap();
         let source_code = b"console.log(Hello World);".to_vec();
 
@@ -238,10 +238,12 @@ mod test {
             old_end_position: CustomPoint::new(5, 8),
             new_end_position: CustomPoint::new(5, 14),
         });
-        file.update_source_code(&source_code);
+        file_manager
+            .update_source_code_for_file(&id.0, &source_code)
+            .unwrap();
         parser_helper.update_tree(&id.0, input_edit).unwrap();
         parser_helper
-            .parse(&id.0, &file.language.clone().unwrap(), &source_code)
+            .parse(&id.0, &file_language.clone().unwrap(), &source_code)
             .unwrap();
     }
 }

@@ -345,33 +345,30 @@ mod test {
         let query_analyser = QueryManager::default();
         let id = file_manager.load_file("../../test_home/test.js").unwrap();
         let source_code = file_manager.read_source_code_in_bytes(&id.0).unwrap();
-        let file_mutex = file_manager._get_file(&id.0);
         let file_language = file_manager.get_file_language(&id.0).unwrap();
         file_manager
             .update_source_code_for_file(&id.0, &source_code)
             .unwrap();
-        if let Ok(file_mutex) = file_mutex {
-            parser_helper
-                .append_tree(&id.0, file_mutex.clone())
-                .unwrap();
-            parser_helper.update_tree(&id.0, None).unwrap();
-            parser_helper
-                .parse(&id.0, &file_language.clone().unwrap(), &source_code)
-                .unwrap();
-            let tokens = query_analyser
-                .iter_query(
-                    &parser_helper.get_tree(&id.0).unwrap(),
-                    &file_language.clone().unwrap(),
-                    &source_code,
-                )
-                .unwrap();
+        parser_helper
+            .append_tree(&id.0, file_language.clone())
+            .unwrap();
+        parser_helper.update_tree(&id.0, None).unwrap();
+        parser_helper
+            .parse(&id.0, &file_language.clone().unwrap(), &source_code)
+            .unwrap();
+        let tokens = query_analyser
+            .iter_query(
+                &parser_helper.get_tree(&id.0).unwrap(),
+                &file_language.clone().unwrap(),
+                &source_code,
+            )
+            .unwrap();
 
-            let result = query_analyser
-                .sort_layer(tokens, &file_language.clone().unwrap())
-                .unwrap();
+        let result = query_analyser
+            .sort_layer(tokens, &file_language.clone().unwrap())
+            .unwrap();
 
-            // println!("{:?}", query_analyser.get_legend(&crate::Lang::Javascript));
-            println!("{:#2?}", result);
-        }
+        // println!("{:?}", query_analyser.get_legend(&crate::Lang::Javascript));
+        println!("{:#2?}", result);
     }
 }
