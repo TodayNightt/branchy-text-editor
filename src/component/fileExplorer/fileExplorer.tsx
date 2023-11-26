@@ -58,7 +58,7 @@ const Directory: Component<{
 };
 
 const FileExplorer: Component = () => {
-  onMount(() => invokeChangeDir("../../test_home"));
+  onMount(() => invokeChangeDir(null));
 
   const handleClick: EventHandler = (evt) => {
     invokeOpenFile(evt.currentTarget?.value);
