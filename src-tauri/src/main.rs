@@ -1,13 +1,13 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use specta::collect_types;
-use tauri::Manager;
-use tauri_specta::ts;
-use tauri_text_editor::{
+use branchy_text_editor::{
     backend_api::{editor_info::*, file_data::*, file_system::*},
     StateManager,
 };
+use specta::collect_types;
+use tauri::Manager;
+use tauri_specta::ts;
 
 fn main() {
     #[cfg(debug_assertions)]

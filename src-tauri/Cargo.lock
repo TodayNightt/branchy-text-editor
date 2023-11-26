@@ -153,6 +153,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "branchy-text-editor"
+version = "0.1.0"
+dependencies = [
+ "derivative",
+ "home",
+ "path-absolutize",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "specta",
+ "tauri",
+ "tauri-build",
+ "tauri-specta",
+ "thiserror",
+ "tree-sitter",
+ "tree-sitter-html",
+ "tree-sitter-java",
+ "tree-sitter-javascript",
+ "tree-sitter-json",
+ "tree-sitter-rust",
+ "tree-sitter-typescript",
+]
+
+[[package]]
 name = "brotli"
 version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2968,30 +2992,6 @@ checksum = "5993dc129e544393574288923d1ec447c857f3f644187f4fbf7d9a875fbfc4fb"
 dependencies = [
  "embed-resource",
  "toml 0.7.8",
-]
-
-[[package]]
-name = "tauri_text_editor"
-version = "0.0.0"
-dependencies = [
- "derivative",
- "home",
- "path-absolutize",
- "rand 0.8.5",
- "serde",
- "serde_json",
- "specta",
- "tauri",
- "tauri-build",
- "tauri-specta",
- "thiserror",
- "tree-sitter",
- "tree-sitter-html",
- "tree-sitter-java",
- "tree-sitter-javascript",
- "tree-sitter-json",
- "tree-sitter-rust",
- "tree-sitter-typescript",
 ]
 
 [[package]]
