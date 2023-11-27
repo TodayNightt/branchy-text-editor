@@ -1,6 +1,9 @@
-use crate::{DirectoryItem, Lang, OpenedFile};
+use std::path::PathBuf;
+
 use serde::{Deserialize, Serialize};
 use specta::Type;
+
+use crate::{files_api::DirectoryItem, language::Lang};
 
 #[derive(Debug, Serialize, Deserialize, Type)]
 pub struct FileSystemInfo {
@@ -27,13 +30,13 @@ pub struct OpenFile {
 }
 
 impl OpenFile {
-    pub fn create(file_info: (u32, bool), file: &OpenedFile) -> Self {
+    pub fn create(id: u32, same_name_exist: bool, file: (String, Option<Lang>, PathBuf)) -> Self {
         Self {
-            id: file_info.0,
-            same_name_exist: file_info.1,
-            name: file.name.to_owned(),
-            language: file.language.to_owned(),
-            path: file.path.to_str().unwrap().to_string(),
+            id,
+            same_name_exist,
+            name: file.0.to_owned(),
+            language: file.1.to_owned(),
+            path: file.2.to_str().unwrap().to_string(),
         }
     }
 }

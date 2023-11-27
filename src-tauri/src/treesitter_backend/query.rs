@@ -3,16 +3,16 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use tree_sitter::{Query, QueryCursor, Range, Tree};
+use tree_sitter::{Point, Query, QueryCursor, Range, Tree};
 
-use crate::error::NotFoundError;
-use crate::{insert_to_hash_map, Lang};
+use crate::error::{FileError, NotFoundError};
+use crate::{insert_to_hash_map, language::Lang};
 
 use super::get_query_from_each_language;
 use super::get_tree_sitter_language;
 use super::highlighter::HighlightIter;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Type)]
 pub struct RangePoint(u32, u32, u32, u32);
 impl RangePoint {
     pub fn start_row(&self) -> u32 {
@@ -44,6 +44,16 @@ impl From<Range> for RangePoint {
         )
     }
 }
+
+impl Into<core::ops::Range<Point>> for RangePoint {
+    fn into(self) -> core::ops::Range<Point> {
+        core::ops::Range {
+            start: Point::new(self.0 as usize, self.1 as usize),
+            end: Point::new(self.2 as usize, self.3 as usize),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Type, Clone, Default)]
 pub struct SemanticLegend {
     _token_types: Vec<String>,
@@ -138,14 +148,18 @@ impl Default for QueryManager {
         insert_to_hash_map!(query queries, Lang::Typescript);
         insert_to_hash_map!(query queries, Lang::Json);
         insert_to_hash_map!(query queries, Lang::Html);
+        insert_to_hash_map!(query queries, Lang::Java);
         Self(queries)
     }
 }
 
 impl QueryManager {
-    pub fn get_legend(&self, lang: &Lang) -> Arc<SemanticLegend> {
-        let query_data = self.0.get(&lang).unwrap();
-        query_data.modified_legend.clone()
+    pub fn get_legend(&self, lang: &Lang) -> Result<Arc<SemanticLegend>, FileError> {
+        let query_data = self
+            .0
+            .get(&lang)
+            .ok_or_else(|| FileError::LanguageNotSupportError(lang.to_string()))?;
+        Ok(query_data.modified_legend.clone())
     }
 
     pub fn get_unmodified_legend(&self, lang: &Lang) -> Result<Arc<SemanticLegend>, NotFoundError> {
@@ -155,6 +169,7 @@ impl QueryManager {
             .ok_or_else(|| NotFoundError::QueryNotFoundError(lang.to_string()))?;
         Ok(query_data.legend.clone())
     }
+
     pub fn iter_query(
         &self,
         tree: &Option<Tree>,
@@ -173,29 +188,56 @@ impl QueryManager {
 
             let _name = query.capture_names().to_vec();
 
-            let matches =
-                query_cursor.captures(query, tree.root_node(), ranged_source_code.as_slice());
-            // let mut prev_range = Range {
-            //     start_byte: 0,
-            //     end_byte: 0,
-            //     start_point: Point::default(),
-            //     end_point: Point::default(),
-            // };
-            for matches in matches {
-                for capture in matches.0.captures {
+            let matches = query_cursor
+                .captures(query, tree.root_node(), ranged_source_code.as_slice())
+                .peekable();
+
+            data = matches
+                .map(|(qm, id)| {
+                    let capture = qm.captures[id];
                     let range = capture.node.range();
                     let index = capture.index;
 
-                    let token = Token::new(index, range);
+                    Token::new(index, range)
+                })
+                .collect();
+        }
 
-                    // if range.eq(&prev_range) {
-                    //     continue;
-                    // }
+        Ok(data)
+    }
+    pub fn iter_query_with_range(
+        &self,
+        tree: &Option<Tree>,
+        language: &Lang,
+        ranged_source_code: &Vec<u8>,
+        range: RangePoint,
+    ) -> Result<Vec<Token>, NotFoundError> {
+        let mut data: Vec<Token> = vec![];
 
-                    data.push(token);
-                    // prev_range = range;
-                }
-            }
+        if let Some(tree) = tree.as_ref() {
+            let query_data = self
+                .0
+                .get(&language)
+                .ok_or_else(|| NotFoundError::QueryNotFoundError(language.to_string()))?;
+            let query = &query_data.query;
+            let mut query_cursor = QueryCursor::new();
+            let query_cursor = query_cursor.set_point_range(range.into());
+
+            let _name = query.capture_names().to_vec();
+
+            let matches = query_cursor
+                .captures(query, tree.root_node(), ranged_source_code.as_slice())
+                .peekable();
+
+            data = matches
+                .map(|(qm, id)| {
+                    let capture = qm.captures[id];
+                    let range = capture.node.range();
+                    let index = capture.index;
+
+                    Token::new(index, range)
+                })
+                .collect();
         }
 
         Ok(data)
@@ -303,33 +345,30 @@ mod test {
         let query_analyser = QueryManager::default();
         let id = file_manager.load_file("../../test_home/test.js").unwrap();
         let source_code = file_manager.read_source_code_in_bytes(&id.0).unwrap();
-        let file_mutex = file_manager._get_file(&id.0);
         let file_language = file_manager.get_file_language(&id.0).unwrap();
         file_manager
             .update_source_code_for_file(&id.0, &source_code)
             .unwrap();
-        if let Ok(file_mutex) = file_mutex {
-            parser_helper
-                .append_tree(&id.0, file_mutex.clone())
-                .unwrap();
-            parser_helper.update_tree(&id.0, None).unwrap();
-            parser_helper
-                .parse(&id.0, &file_language.clone().unwrap(), &source_code)
-                .unwrap();
-            let tokens = query_analyser
-                .iter_query(
-                    &parser_helper.get_tree(&id.0).unwrap(),
-                    &file_language.clone().unwrap(),
-                    &source_code,
-                )
-                .unwrap();
+        parser_helper
+            .append_tree(&id.0, file_language.clone())
+            .unwrap();
+        parser_helper.update_tree(&id.0, None).unwrap();
+        parser_helper
+            .parse(&id.0, &file_language.clone().unwrap(), &source_code)
+            .unwrap();
+        let tokens = query_analyser
+            .iter_query(
+                &parser_helper.get_tree(&id.0).unwrap(),
+                &file_language.clone().unwrap(),
+                &source_code,
+            )
+            .unwrap();
 
-            let result = query_analyser
-                .sort_layer(tokens, &file_language.clone().unwrap())
-                .unwrap();
+        let result = query_analyser
+            .sort_layer(tokens, &file_language.clone().unwrap())
+            .unwrap();
 
-            // println!("{:?}", query_analyser.get_legend(&crate::Lang::Javascript));
-            println!("{:#2?}", result);
-        }
+        // println!("{:?}", query_analyser.get_legend(&crate::Lang::Javascript));
+        println!("{:#2?}", result);
     }
 }

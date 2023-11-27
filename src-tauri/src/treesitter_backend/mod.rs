@@ -1,6 +1,6 @@
 use tree_sitter::Language;
 
-use crate::Lang;
+use crate::language::Lang;
 
 pub mod highlighter;
 pub mod parser;
@@ -12,6 +12,7 @@ pub fn get_tree_sitter_language(lang: &Lang) -> Language {
         Lang::Javascript => tree_sitter_javascript::language(),
         // Currently not supported
         // Lang::Typescript => tree_sitter_typescript::language_typescript(),
+        Lang::Java => tree_sitter_java::language(),
         Lang::Rust => tree_sitter_rust::language(),
         Lang::Html => tree_sitter_html::language(),
         _ => tree_sitter_javascript::language(),
@@ -29,6 +30,9 @@ pub fn get_query_from_each_language(language: &Lang) -> String {
         // Lang::Typescript => {
         //     query_combine.push_str(tree_sitter_typescript::HIGHLIGHT_QUERY);
         // }
+        Lang::Java => {
+            query_combine.push_str(tree_sitter_java::HIGHLIGHT_QUERY);
+        }
         Lang::Rust => {
             query_combine.push_str(tree_sitter_rust::HIGHLIGHT_QUERY);
             // query_combine.push_str(tree_sitter_rust::INJECTIONS_QUERY);

@@ -1,15 +1,13 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use specta::collect_types;
-use tauri::Manager;
-use tauri_specta::ts;
-use tauri_text_editor::{
+use branchy_text_editor::{
     backend_api::{editor_info::*, file_data::*, file_system::*},
     StateManager,
 };
-
-use std::path::PathBuf;
+use specta::collect_types;
+use tauri::Manager;
+use tauri_specta::ts;
 
 fn main() {
     #[cfg(debug_assertions)]
@@ -48,9 +46,10 @@ fn main() {
             get_currently_supported_language
         ])
         .setup(|app| {
-            app.manage(StateManager::new());
             let app_handle = app.handle();
-
+            let config_dir = app_handle.path_resolver().app_local_data_dir();
+            let state_manager = StateManager::new(config_dir)?;
+            app_handle.manage(state_manager);
             Ok(())
         })
         .run(tauri::generate_context!())

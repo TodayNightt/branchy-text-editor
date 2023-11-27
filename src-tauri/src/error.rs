@@ -9,6 +9,8 @@ trait Format {
 pub enum PathError {
     #[error("Could not convert OsString to String")]
     ToStringError,
+    #[error("Path not found")]
+    PathNotFoundError,
 }
 
 #[derive(Debug, Error, Serialize)]
@@ -39,6 +41,14 @@ pub enum NotFoundError {
     FileNotFoundError(u32),
 }
 
+#[derive(Debug, Error, Serialize)]
+pub enum SerdeError {
+    #[error("Could not serialize error : {0}")]
+    SerializeError(String),
+    #[error("Could not deserialize error : {0}")]
+    DerializeError(String),
+}
+
 #[derive(Debug, Error)]
 #[error("MutexLockError : {0}")]
 pub struct MutexLockError(pub String);
@@ -55,12 +65,15 @@ pub enum Error {
     IOError(#[from] std::io::Error),
     #[error("MutexLockError : {0}")]
     MutexLockError(#[from] MutexLockError),
+    #[error("SerdeError : {0}")]
+    SerdeError(#[from] SerdeError),
 }
 
 impl Format for PathError {
     fn kind(&self) -> String {
         match self {
-            PathError::ToStringError => "PathError::ToString".to_string(),
+            PathError::ToStringError => "PathError::ToStringError".to_string(),
+            PathError::PathNotFoundError => "PathError::PathNotFoundError".to_string(),
         }
     }
 }
@@ -99,6 +112,15 @@ impl Format for MutexLockError {
     }
 }
 
+impl Format for SerdeError {
+    fn kind(&self) -> String {
+        match self {
+            Self::SerializeError(_) => "SerdeError::SerializeError".to_string(),
+            Self::DerializeError(_) => "SerdeError::DerializeError".to_string(),
+        }
+    }
+}
+
 impl Serialize for Error {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -110,6 +132,7 @@ impl Serialize for Error {
             Error::PathError(err) => (err.kind(), err.to_string()),
             Error::IOError(err) => (err.kind().to_string(), err.to_string()),
             Error::MutexLockError(err) => (err.kind(), err.to_string()),
+            Error::SerdeError(err) => (err.kind(), err.to_string()),
         };
 
         let response = ResponseError {

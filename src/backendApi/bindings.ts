@@ -50,22 +50,31 @@ export function getTokensLegend(lang: Lang) {
     return invoke()<SemanticLegend>("get_tokens_legend", { lang })
 }
 
-export function setHighlights(id: number, rangedSourceCode: string) {
-    return invoke()<number[]>("set_highlights", { id,rangedSourceCode })
+export function setHighlights(id: number, rangedSourceCode: string, range: RangePoint) {
+    return invoke()<number[]>("set_highlights", { id,rangedSourceCode,range })
 }
 
 export function getCurrentlySupportedLanguage() {
     return invoke()<Lang[]>("get_currently_supported_language")
 }
 
-export type EditorTheme = { background: string }
-export type ChangesRange = { start_byte: number; old_end_byte: number; new_end_byte: number; start_position: CustomPoint; old_end_position: CustomPoint; new_end_position: CustomPoint }
-export type Theme = { rules: Token[] }
 export type SemanticLegend = { _token_types: string[]; _token_modifier: string[] }
-export type OpenFile = { id: number; name: string; language: Lang | null; same_name_exist: boolean; path: string }
-export type LanguageTheme = { default: Theme; javascript: Theme | null; rust: Theme | null; java: Theme | null; html: Theme | null; css: Theme | null; python: Theme | null; ruby: Theme | null }
-export type CustomPoint = { row: number; column: number }
-export type Token = { token: string; foreground: string }
-export type Lang = "Javascript" | "Typescript" | "Rust" | "Python" | "Java" | "Ruby" | "Html" | "Css" | "Json"
-export type FileSystemInfo = { current_directory: string; directory_items: DirectoryItem[] }
+export type Html = null
+export type Java = null
+export type Javascript = null
+export type Css = null
+export type ChangesRange = { start_byte: number; old_end_byte: number; new_end_byte: number; start_position: CustomPoint; old_end_position: CustomPoint; new_end_position: CustomPoint }
 export type DirectoryItem = { is_file: boolean; name: string; path: string; childrens: DirectoryItem[] | null }
+export type Theme<T> = { rules: Token[] }
+export type RangePoint = [number, number, number, number]
+export type CustomPoint = { row: number; column: number }
+export type OpenFile = { id: number; name: string; language: Lang | null; same_name_exist: boolean; path: string }
+export type EditorTheme = { background: string }
+export type Token = { token: string; foreground: string }
+export type Basic = null
+export type Ruby = null
+export type Rust = null
+export type LanguageTheme = { default: Theme<Basic>; javascript: Theme<Javascript> | null; rust: Theme<Rust> | null; java: Theme<Java> | null; html: Theme<Html> | null; css: Theme<Css> | null; python: Theme<Python> | null; ruby: Theme<Ruby> | null }
+export type FileSystemInfo = { current_directory: string; directory_items: DirectoryItem[] }
+export type Lang = "Javascript" | "Typescript" | "Rust" | "Python" | "Java" | "Ruby" | "Html" | "Css" | "Json"
+export type Python = null

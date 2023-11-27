@@ -1,7 +1,16 @@
-# Tauri + Solid + Typescript
+# branchy text editor
 
-This template should help get you started developing with Tauri, Solid and Typescript in Vite.
+branchy text editor is a editor build from the tauri framework and it's frontend is from Solidjs. Plus it has Tree-sitter using as the syntax highlighting.
 
-## Recommended IDE Setup
+![](app.png)
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+## Currently supported platform
+
+- Windows x86 (only)
+
+## Currently supported text (With syntax hightlighting)
+
+- Rust
+- JavaScript
+- Html
+- Json

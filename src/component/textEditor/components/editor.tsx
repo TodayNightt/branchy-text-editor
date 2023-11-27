@@ -1,9 +1,7 @@
 import { Component, createSignal, onCleanup, onMount } from "solid-js";
 import {
   invokeGetSourceCode,
-  invokeGetTokensLegend,
   invokeHandleFileChanges,
-  invokeHighlights,
   invokeSaveFile,
 } from "../../../backendApi/invocation";
 
@@ -12,13 +10,14 @@ import {
   getLanguageThemeIfAnyElseDefault,
 } from "../../../backendApi/stateStore";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
-// @ts-ignore
-import styles from "./styles.module.scss";
 import { registerSemanticTokenProvider } from "./tokenProvider";
+// @ts-ignore
+import styles from "../styles.module.css";
 
 const Editor: Component<{ tabs: OpenFileTab }> = (props) => {
   const fileInfo = props.tabs.fileInfo;
   let editor = props.tabs.editor;
+  let registration: monaco.IDisposable | undefined;
   const id = fileInfo.id;
   const language = fileInfo.language!;
   const [currentEndPosition, setCurrentEndPosition] = createSignal({
@@ -32,12 +31,12 @@ const Editor: Component<{ tabs: OpenFileTab }> = (props) => {
 
   const handleKey = async (
     action: Action,
-    _model?: monaco.editor.ITextModel
+    _editor?: monaco.editor.ICodeEditor
   ) => {
     switch (action) {
       case Action.Save:
         console.log("saving");
-        await invokeSaveFile(props.fileInfo.id);
+        await invokeSaveFile(fileInfo.id);
         break;
       default:
         console.log("Verify Not Reached");
@@ -47,13 +46,19 @@ const Editor: Component<{ tabs: OpenFileTab }> = (props) => {
   const handleChange = async (e: monaco.editor.IModelContentChangedEvent) => {
     let change = e.changes[0];
 
-    const startLine = change.range.startLineNumber;
-    const startColumn = change.range.startColumn;
-    const endLine = change.range.endLineNumber;
-    const endColumn = change.range.endColumn;
+    const startLine =
+      change.range.startLineNumber === 0 ? 0 : change.range.startLineNumber - 1;
+    const startColumn =
+      change.range.startColumn === 0 ? 0 : change.range.startColumn - 1;
+    const endLine =
+      change.range.endLineNumber === 0 ? 0 : change.range.endLineNumber - 1;
+    const endColumn =
+      change.range.endColumn === 0 ? 0 : change.range.endColumn - 1;
 
     const startByte = change.rangeOffset;
     const endByte = startByte + change.text.length;
+
+    console.log(change);
 
     await invokeHandleFileChanges(
       id,
@@ -106,6 +111,8 @@ const Editor: Component<{ tabs: OpenFileTab }> = (props) => {
         automaticLayout: true,
         theme: "custom",
         "semanticHighlighting.enabled": true,
+        folding: false,
+        minimap: { enabled: false },
       });
     }
 
@@ -124,9 +131,8 @@ const Editor: Component<{ tabs: OpenFileTab }> = (props) => {
       },
     });
 
-
     if (language) {
-      await registerSemanticTokenProvider(language, id, langId);
+      registration = await registerSemanticTokenProvider(language, id, langId);
     }
 
     //Initialize the currentEndPosition for the tree-sitter parsing
@@ -141,6 +147,7 @@ const Editor: Component<{ tabs: OpenFileTab }> = (props) => {
   });
   onCleanup(() => {
     editor?.getModel()?.dispose();
+    registration?.dispose();
   });
   return <div class={styles.editor} ref={editorEl}></div>;
 };

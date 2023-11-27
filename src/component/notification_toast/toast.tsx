@@ -33,9 +33,6 @@ const Toaster: Component<{
         </div>
         <Toast.CloseButton class="toast__close-button">X</Toast.CloseButton>
       </div>
-      <Toast.ProgressTrack class="toast__progress-track">
-        <Toast.ProgressFill class="toast__progress-fill" />
-      </Toast.ProgressTrack>
     </Toast.Root>
   );
 };

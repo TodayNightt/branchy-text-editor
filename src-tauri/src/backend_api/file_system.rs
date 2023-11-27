@@ -1,11 +1,12 @@
-use crate::error::Error;
-use crate::error::MutexLockError;
-use crate::error::PathError;
-use crate::get_directory_items;
-use crate::StateManager;
 use home::home_dir;
 use path_absolutize::Absolutize;
 use std::path::PathBuf;
+
+use crate::{
+    error::{Error, MutexLockError, PathError},
+    files_api::get_directory_items,
+    StateManager,
+};
 
 use super::responses::FileSystemInfo;
 use super::responses::OpenFile;
@@ -18,7 +19,7 @@ pub fn get_file_system_info(dir: Option<String>) -> Result<FileSystemInfo, Error
         if !path_buf.is_absolute() {
             path_buf = path_buf.absolutize().unwrap().to_path_buf();
         }
-        let directory_items = get_directory_items(&path_buf, 2)?;
+        let directory_items = get_directory_items(&path_buf, 4)?;
         return Ok(FileSystemInfo::create(
             path_buf
                 .into_os_string()
@@ -47,11 +48,10 @@ pub fn open_file(state: tauri::State<StateManager>, path: String) -> Result<Open
         .map_err(|err| MutexLockError(err.to_string()))?;
 
     let file_info = file_manager.load_file(path)?;
-    let binding = file_manager._get_file(&file_info.0)?;
-    let file = binding
-        .try_lock()
-        .map_err(|err| MutexLockError(err.to_string()))?;
-    Ok(OpenFile::create(file_info, &file))
+    let same_name_exist = file_info.1;
+    let id = file_info.0;
+    let file_info = file_manager.get_file_info(&id)?;
+    Ok(OpenFile::create(id, same_name_exist, file_info))
 }
 
 #[tauri::command]

@@ -1,9 +1,11 @@
 use std::ops::Deref;
 
 use crate::{
+    app_config::EditorTheme,
     error::{Error, MutexLockError},
-    treesitter_backend::theme::{EditorTheme, LanguageTheme},
-    Lang, StateManager,
+    language::Lang,
+    treesitter_backend::theme::LanguageTheme,
+    StateManager,
 };
 
 use crate::treesitter_backend::query::SemanticLegend;
@@ -18,13 +20,12 @@ pub fn get_current_language_theme(
         .try_lock()
         .map_err(|err| MutexLockError(err.to_string()))?;
 
-    let theme_config = editor_config
-        .theme
+    let theme_config = editor_config.theme();
+    let theme_config = theme_config
         .try_lock()
         .map_err(|err| MutexLockError(err.to_string()))?;
-
-    let language_theme = theme_config
-        .language
+    let language_theme = theme_config.language_theme();
+    let language_theme = language_theme
         .try_lock()
         .map_err(|err| MutexLockError(err.to_string()))?;
 
@@ -40,17 +41,17 @@ pub fn get_editor_config(
         .editor_config
         .try_lock()
         .map_err(|err| MutexLockError(err.to_string()))?;
-    let theme_config = editor_config
-        .theme
+    let theme_config = editor_config.theme();
+    let theme_config = theme_config
         .try_lock()
         .map_err(|err| MutexLockError(err.to_string()))?;
 
-    let language_theme = theme_config
-        .language
+    let language_theme = theme_config.language_theme();
+    let language_theme = language_theme
         .try_lock()
         .map_err(|err| MutexLockError(err.to_string()))?;
-    let editor_theme = theme_config
-        .editor
+    let editor_theme = theme_config.editor_theme();
+    let editor_theme = editor_theme
         .try_lock()
         .map_err(|err| MutexLockError(err.to_string()))?;
 
@@ -62,10 +63,10 @@ pub fn get_editor_config(
 pub fn get_tokens_legend(
     state: tauri::State<StateManager>,
     lang: Lang,
-) -> Result<SemanticLegend, String> {
+) -> Result<SemanticLegend, Error> {
     let query_iter = &state.query_iter;
 
-    Ok(query_iter.get_legend(&lang).deref().to_owned())
+    Ok(query_iter.get_legend(&lang)?.deref().to_owned())
 }
 
 #[tauri::command]
