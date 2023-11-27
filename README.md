@@ -1,6 +1,8 @@
 # branchy text editor
 
-A text editor build from tauri and solidjs
+branchy text editor is a editor build from the tauri framework and it's frontend is from Solidjs. Plus it has Tree-sitter using as the syntax highlighting.
+
+![](app.png)
 
 ## Currently supported platform
 
