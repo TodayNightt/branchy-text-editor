@@ -15,10 +15,14 @@
   box-sizing: inherit;
   min-width: 100%;
   overflow: scroll;
+
+  color: #f6f6f6;
 }
 
 .collapsible {
   box-sizing: inherit;
+
+  color: #f6f6f6;
 }
 
 .button {
@@ -26,6 +30,8 @@
   display: block;
   background-color: transparent;
   border: none;
+
+  color: #f6f6f6;
   /* box-sizing: inherit; */
 
   text-align: left;
@@ -40,11 +46,15 @@
   overflow: hidden;
   min-width: 0;
   text-overflow: ellipsis;
+
+  color: #f6f6f6;
 }
 
 .trigger-icon {
   margin-right: 0.5rem;
   transition: transform 200ms ease-out;
+
+  color: #f6f6f6;
 }
 
 .button[data-expanded] .trigger-icon {
@@ -58,4 +68,6 @@
 .folder-content {
   padding-left: 1rem;
   padding-top: 5px;
+
+  color: #f6f6f6;
 }
