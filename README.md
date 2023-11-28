@@ -6,11 +6,12 @@ branchy text editor is a editor build from the tauri framework and it's frontend
 
 ## Currently supported platform
 
-- Windows x64 (only)
+- Windows x86_64 (only)
 
 ## Currently supported text (With syntax hightlighting)
 
 - Rust
 - JavaScript
+- Java
 - Html
 - Json
