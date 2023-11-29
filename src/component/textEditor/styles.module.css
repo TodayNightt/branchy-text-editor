@@ -7,6 +7,8 @@
   box-sizing: border-box;
   background: linear-gradient(rgb(23, 4, 44), rgb(16, 2, 31));
   border-radius: 1rem;
+
+  color: #f6f6f6;
   /* background: radial-gradient(#1b0136, #19032f, #140227, #000); */
 }
 
@@ -16,6 +18,8 @@
   flex-wrap: wrap;
   min-height: 2rem;
   box-sizing: border-box;
+
+  color: #f6f6f6;
 }
 .tab-content {
   flex: 1;
@@ -23,6 +27,8 @@
   display: flex;
   box-sizing: inherit;
   flex-direction: column;
+
+  color: #f6f6f6;
 }
 
 .editor {
@@ -38,6 +44,8 @@
   align-items: center;
   background-color: #1f1f1f;
   border: none;
+
+  color: #f6f6f6;
 }
 
 .tab-trigger[data-selected] {
@@ -58,6 +66,8 @@
   width: 1rem;
   height: 1rem;
   padding: 10px;
+
+  color: #f6f6f6;
 }
 
 .close-tab-btn:hover,
@@ -71,4 +81,6 @@
   justify-content: center;
   align-items: center;
   gap: 1rem;
+
+  color: #f6f6f6;
 }
