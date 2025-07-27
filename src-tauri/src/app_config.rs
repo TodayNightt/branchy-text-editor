@@ -33,7 +33,7 @@ impl EditorConfig {
         }
     }
     pub fn load(path: Option<PathBuf>) -> Result<Self, Error> {
-        let mut path = path.clone().ok_or_else(|| PathError::PathNotFoundError)?;
+        let mut path = path.clone().ok_or(PathError::PathNotFoundError)?;
         path.push(Path::new("config.json"));
         let file = File::open(path.clone());
         if let Ok(file) = file {
