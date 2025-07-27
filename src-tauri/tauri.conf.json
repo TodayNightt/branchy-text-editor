@@ -2,66 +2,40 @@
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
-    "devPath": "http://localhost:1420",
-    "distDir": "../dist",
-    "withGlobalTauri": false
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420"
   },
-  "package": {
-    "productName": "branchy",
-    "version": "0.1.0"
-  },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "window": {
-        "all": false,
-        "close": true,
-        "hide": true,
-        "show": true,
-        "maximize": true,
-        "minimize": true,
-        "unmaximize": true,
-        "unminimize": true,
-        "startDragging": true
-      },
-      "dialog": {
-        "all": true,
-        "ask": true,
-        "confirm": true,
-        "message": true,
-        "open": true,
-        "save": true
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "windows": {
+      "allowDowngrades": true,
+      "certificateThumbprint": null,
+      "digestAlgorithm": null,
+      "nsis": null,
+      "timestampUrl": null,
+      "tsp": false,
+      "wix": null,
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
       }
     },
-    "bundle": {
-      "active": true,
-      "targets": "all",
-      "identifier": "com.editor.branchy",
-      "category": "DeveloperTools",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.png",
-        "icons/icon.ico"
-      ],
-      "windows": {
-        "allowDowngrades": true,
-        "certificateThumbprint": null,
-        "digestAlgorithm": null,
-        "nsis": null,
-        "timestampUrl": null,
-        "tsp": false,
-        "webviewFixedRuntimePath": null,
-        "webviewInstallMode": {
-          "type": "embedBootstrapper"
-        },
-        "wix": null
-      }
-    },
-    "security": {
-      "csp": null
-    },
+    "category": "DeveloperTools",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.ico"
+    ]
+  },
+  "productName": "branchy",
+  "mainBinaryName": "branchy",
+  "version": "0.1.0",
+  "identifier": "com.editor.branchy",
+  "plugins": {},
+  "app": {
+    "withGlobalTauri": false,
     "windows": [
       {
         "fullscreen": false,
@@ -70,8 +44,12 @@
         "transparent": true,
         "title": "branchy-text-editor",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "useHttpsScheme": true
       }
-    ]
+    ],
+    "security": {
+      "csp": null
+    }
   }
 }

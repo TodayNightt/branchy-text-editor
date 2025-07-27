@@ -5,24 +5,15 @@ description = "A Text editor build from tauri and SolidJs"
 authors = ["you"]
 license = "MIT"
 repository = "https://github.com/TodayNightt/branchy-text-editor.git"
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "1.5", features = [] }
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "1.5", features = [
-    "dialog-all",
-    "window-unmaximize",
-    "window-show",
-    "window-unminimize",
-    "window-start-dragging",
-    "window-minimize",
-    "window-maximize",
-    "window-hide",
-    "window-close",
+tauri = { version = "2", features = [
 ] }
 serde = { version = "1.0.189", features = ["derive", "rc"] }
 serde_json = "1.0.107"
@@ -33,13 +24,22 @@ tree-sitter-html = "0.19.0"
 tree-sitter-typescript = "0.20.3"
 tree-sitter-json = "0.20.1"
 tree-sitter-java = "0.20.2"
-rand = "0.8.5"
+rand = "0.9.2"
 path-absolutize = "3.1.1"
 thiserror = "1.0.50"
 home = "0.5.5"
-specta = "1.0.5"
-tauri-specta = { version = "1.0.2", features = ["javascript", "typescript"] }
+specta= { version = "2.0.0-rc.21", features = ["derive","function"] }
+tauri-specta = { version = "2.0.0-rc.21", features = ["javascript","derive", "typescript"] }
 derivative = "2.2.0"
+tauri-plugin-dialog = "2"
+
+
+specta-typescript="0.0.9"
+
+[patch.crates-io]
+# Waiting for release of https://github.com/tauri-apps/tauri/pull/12371
+tauri = { git = "https://github.com/tauri-apps/tauri", rev = "75d56e8364fb203387bb5a5235f316dd7dfa6acd" }
+
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem
