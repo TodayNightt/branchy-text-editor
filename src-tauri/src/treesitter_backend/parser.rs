@@ -24,15 +24,15 @@ pub struct ChangesRange {
     pub new_end_position: CustomPoint,
 }
 
-impl Into<InputEdit> for ChangesRange {
-    fn into(self) -> InputEdit {
+impl From<ChangesRange> for InputEdit {
+    fn from(val: ChangesRange) -> Self {
         InputEdit {
-            start_byte: self.start_byte as usize,
-            old_end_byte: self.old_end_byte as usize,
-            new_end_byte: self.new_end_byte as usize,
-            start_position: self.start_position.into(),
-            old_end_position: self.old_end_position.into(),
-            new_end_position: self.new_end_position.into(),
+            start_byte: val.start_byte as usize,
+            old_end_byte: val.old_end_byte as usize,
+            new_end_byte: val.new_end_byte as usize,
+            start_position: val.start_position.into(),
+            old_end_position: val.old_end_position.into(),
+            new_end_position: val.new_end_position.into(),
         }
     }
 }
@@ -44,9 +44,9 @@ pub struct CustomPoint {
     pub column: u32,
 }
 
-impl Into<Point> for CustomPoint {
-    fn into(self) -> Point {
-        Point::new(self.row as usize, self.column as usize)
+impl From<CustomPoint> for Point {
+    fn from(val: CustomPoint) -> Self {
+        Point::new(val.row as usize, val.column as usize)
     }
 }
 
@@ -69,7 +69,7 @@ impl Default for ParserHelper {
         insert_to_hash_map!(parser parsers, Lang::Json);
         insert_to_hash_map!(parser parsers, Lang::Java);
         Self {
-            parsers: parsers,
+            parsers,
             trees: HashMap::default(),
         }
     }
@@ -94,7 +94,7 @@ impl ParserHelper {
         file_language: Option<Lang>,
     ) -> Result<(), MutexLockError> {
         if file_language.is_some() {
-            let id = id.clone();
+            let id = *id;
             self.trees.insert(id, None);
         }
 
@@ -108,7 +108,7 @@ impl ParserHelper {
         let tree_option = self
             .trees
             .get_mut(id)
-            .ok_or_else(|| NotFoundError::TreeNotFoundError(id.clone()))?;
+            .ok_or(NotFoundError::TreeNotFoundError(*id))?;
         if let Some(mut tree) = tree_option.take() {
             // Update the tree if tree = Some(tree) AND input = Some(input_edit)
             if let Some(input_edit) = input_edit {
@@ -125,7 +125,7 @@ impl ParserHelper {
         let tree = self
             .trees
             .get(id)
-            .ok_or_else(|| NotFoundError::TreeNotFoundError(id.clone()))?;
+            .ok_or(NotFoundError::TreeNotFoundError(*id))?;
         Ok(tree.clone())
     }
 
@@ -138,7 +138,7 @@ impl ParserHelper {
         let old_tree = self
             .trees
             .get(id)
-            .ok_or_else(|| NotFoundError::TreeNotFoundError(id.clone()))?;
+            .ok_or(NotFoundError::TreeNotFoundError(*id))?;
         // FixMe : This will crash the program if self.language is not support or None
         let parser = self
             .parsers
@@ -172,7 +172,7 @@ impl ParserHelper {
         let item = self
             .trees
             .get(id)
-            .ok_or_else(|| NotFoundError::TreeNotFoundError(id.clone()))?;
+            .ok_or(NotFoundError::TreeNotFoundError(*id))?;
         if let Some(tree) = item {
             Ok(tree.root_node().to_sexp().to_owned())
         } else {
@@ -209,7 +209,10 @@ mod test {
             )
             .unwrap();
 
-        assert_eq!(parser_helper.get_tree_sexp(&id.0).unwrap(),"(program (function_declaration name: (identifier) parameters: (formal_parameters) body: (statement_block (for_statement initializer: (lexical_declaration (variable_declarator name: (identifier) value: (number))) condition: (expression_statement (binary_expression left: (identifier) right: (number))) increment: (update_expression argument: (identifier)) body: (statement_block)))) (expression_statement (call_expression function: (identifier) arguments: (arguments))))");
+        assert_eq!(
+            parser_helper.get_tree_sexp(&id.0).unwrap(),
+            "(program (function_declaration name: (identifier) parameters: (formal_parameters) body: (statement_block (for_statement initializer: (lexical_declaration (variable_declarator name: (identifier) value: (number))) condition: (expression_statement (binary_expression left: (identifier) right: (number))) increment: (update_expression argument: (identifier)) body: (statement_block)))) (expression_statement (call_expression function: (identifier) arguments: (arguments))))"
+        );
     }
 
     #[test]

@@ -12,7 +12,6 @@ pub struct HighlightIter {
     local_reference: Vec<Token>,
     legend_based_on: Arc<SemanticLegend>,
     legend_modified_to: Arc<SemanticLegend>,
-    cached_index: HashMap<u32, (u32, u32)>,
 }
 
 impl HighlightIter {
@@ -31,12 +30,12 @@ impl HighlightIter {
             local_reference,
             legend_based_on,
             legend_modified_to,
-            cached_index: HashMap::default(),
         }
     }
     pub fn analyse_layer(&mut self) -> Highlights {
         let mut result = vec![];
         let mut _current_scope = None;
+        let mut cached_index = HashMap::new();
 
         for token in &self.highlights {
             let range = token.range();
@@ -44,7 +43,7 @@ impl HighlightIter {
             // NOTE : This check is very inefficient
             // Call the method to see whether the range in inside a scope
             _current_scope = self.check_whether_in_scope(range);
-            let mut new_token = token.clone();
+            let mut new_token = *token;
 
             // If is inside a scope
             if _current_scope.is_some_and(|scope| scope.range().within(range)) {
@@ -69,11 +68,10 @@ impl HighlightIter {
             let identifier = new_token.token_type();
 
             // If the cached_index does not contain the key, call remaping and cache it
-            if !self.cached_index.contains_key(&identifier) {
-                let modified_index = self.remaping(identifier);
-                self.cached_index.insert(identifier, modified_index);
-            }
-            let new_index = self.cached_index.get(&identifier).unwrap();
+            cached_index
+                .entry(identifier)
+                .or_insert_with(|| self.remaping(identifier));
+            let new_index = cached_index.get(&identifier).unwrap();
 
             new_token.remap_token_n_modifier(new_index.to_owned());
             result.push(new_token);
@@ -102,7 +100,7 @@ impl HighlightIter {
             .unwrap()
             .to_owned();
 
-        let spilt_identifier: Vec<&str> = identifier.split(".").collect();
+        let spilt_identifier: Vec<&str> = identifier.split('.').collect();
         let first = spilt_identifier.first();
         let last = spilt_identifier.last();
 
@@ -186,7 +184,7 @@ impl MonacoHighlights {
 mod test {
 
     use crate::treesitter_backend::query::QueryManager;
-    use crate::{treesitter_backend::parser::ParserHelper, FileManager};
+    use crate::{FileManager, treesitter_backend::parser::ParserHelper};
 
     use super::MonacoHighlights;
 

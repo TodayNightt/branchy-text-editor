@@ -45,11 +45,11 @@ impl From<Range> for RangePoint {
     }
 }
 
-impl Into<core::ops::Range<Point>> for RangePoint {
-    fn into(self) -> core::ops::Range<Point> {
+impl From<RangePoint> for core::ops::Range<Point> {
+    fn from(val: RangePoint) -> Self {
         core::ops::Range {
-            start: Point::new(self.0 as usize, self.1 as usize),
-            end: Point::new(self.2 as usize, self.3 as usize),
+            start: Point::new(val.0 as usize, val.1 as usize),
+            end: Point::new(val.2 as usize, val.3 as usize),
         }
     }
 }
@@ -116,7 +116,7 @@ impl Token {
         self.length
     }
     pub fn range(&self) -> RangePoint {
-        self.range.clone()
+        self.range
     }
 
     pub fn remap_token_n_modifier(&mut self, index: (u32, u32)) {
@@ -157,7 +157,7 @@ impl QueryManager {
     pub fn get_legend(&self, lang: &Lang) -> Result<Arc<SemanticLegend>, FileError> {
         let query_data = self
             .0
-            .get(&lang)
+            .get(lang)
             .ok_or_else(|| FileError::LanguageNotSupportError(lang.to_string()))?;
         Ok(query_data.modified_legend.clone())
     }
@@ -165,7 +165,7 @@ impl QueryManager {
     pub fn get_unmodified_legend(&self, lang: &Lang) -> Result<Arc<SemanticLegend>, NotFoundError> {
         let query_data = self
             .0
-            .get(&lang)
+            .get(lang)
             .ok_or_else(|| NotFoundError::QueryNotFoundError(lang.to_string()))?;
         Ok(query_data.legend.clone())
     }
@@ -181,7 +181,7 @@ impl QueryManager {
         if let Some(tree) = tree.as_ref() {
             let query_data = self
                 .0
-                .get(&language)
+                .get(language)
                 .ok_or_else(|| NotFoundError::QueryNotFoundError(language.to_string()))?;
             let query = &query_data.query;
             let mut query_cursor = QueryCursor::new();
@@ -217,7 +217,7 @@ impl QueryManager {
         if let Some(tree) = tree.as_ref() {
             let query_data = self
                 .0
-                .get(&language)
+                .get(language)
                 .ok_or_else(|| NotFoundError::QueryNotFoundError(language.to_string()))?;
             let query = &query_data.query;
             let mut query_cursor = QueryCursor::new();
@@ -250,7 +250,7 @@ impl QueryManager {
     ) -> Result<HighlightIter, NotFoundError> {
         let query_data = self
             .0
-            .get(&lang)
+            .get(lang)
             .ok_or_else(|| NotFoundError::QueryNotFoundError(lang.to_string()))?;
 
         let local_scope_index = &query_data._local_scope;
@@ -334,7 +334,7 @@ impl QueryManager {
 
 #[cfg(test)]
 mod test {
-    use crate::{treesitter_backend::parser::ParserHelper, FileManager};
+    use crate::{FileManager, treesitter_backend::parser::ParserHelper};
 
     use super::QueryManager;
 
