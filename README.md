@@ -1,22 +1,20 @@
 <div align="center">
 
-<div style="width: 6rem; height: 4rem">
-
-![Logo](assets/icon.png)
-
-</div>
+<img src="assets/icon.png" width="100" height="100" alt="Logo">
 
 # branchy text editor
 
 
 </div>
 
-branchy text editor is a editor build from the tauri framework and it's frontend is from Solidjs. Plus it has Tree-sitter using for syntax highlighting.
+**Branchy Text Editor** is a modern and performant text editor built with the **Tauri framework**, featuring a responsive frontend powered by **SolidJS**. Get accurate and fast syntax highlighting thanks to **Tree-sitter**, making your coding experience smoother and more efficient.
+
+---
 
 ![](app.png)
 
-## Getting started
-### Prerequisites
+## 🛠️Getting started
+### 📦Prerequisites
 - [Node.js](https://nodejs.org/en/download/) (v18.0.0 or later)
 - [Rust](https://www.rust-lang.org/tools/install) (v1.70
 - [Tauri CLI](https://tauri.app/v1/guides/getting-started/prerequisites/) (v2.0.0 or later)
@@ -34,11 +32,11 @@ branchy text editor is a editor build from the tauri framework and it's frontend
     ```
 3. Build the executable:
     ```bash
-    cargo tauri build
+   cargo tauri build
     ```
-4. Run the application:
+4. Install the application:
     ```bash
-    
+    ./src-tauri/target/release/branchy.exe
     ```
 
 ## Currently supported platform
