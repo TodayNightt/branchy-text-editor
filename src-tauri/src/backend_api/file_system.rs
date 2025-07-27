@@ -1,19 +1,16 @@
+use crate::{
+    StateManager,
+    error::{MutexLockError, PathError, Result},
+    files_api::get_directory_items,
+};
 use home::home_dir;
 use path_absolutize::Absolutize;
 use std::path::PathBuf;
 
-use crate::{
-    error::{Error, MutexLockError, PathError},
-    files_api::get_directory_items,
-    StateManager,
-};
-
 use super::responses::FileSystemInfo;
 use super::responses::OpenFile;
 
-#[tauri::command]
-#[specta::specta]
-pub fn get_file_system_info(dir: Option<String>) -> Result<FileSystemInfo, Error> {
+pub fn _get_file_system_info(dir: Option<String>) -> Result<FileSystemInfo> {
     if let Some(dir) = dir {
         let mut path_buf = PathBuf::from(dir);
         if !path_buf.is_absolute() {
@@ -39,9 +36,7 @@ pub fn get_file_system_info(dir: Option<String>) -> Result<FileSystemInfo, Error
     ))
 }
 
-#[tauri::command]
-#[specta::specta]
-pub fn open_file(state: tauri::State<StateManager>, path: String) -> Result<OpenFile, Error> {
+pub fn _open_file(state: tauri::State<StateManager>, path: String) -> Result<OpenFile> {
     let mut file_manager = state
         .file_manager
         .try_lock()
@@ -54,9 +49,7 @@ pub fn open_file(state: tauri::State<StateManager>, path: String) -> Result<Open
     Ok(OpenFile::create(id, same_name_exist, file_info))
 }
 
-#[tauri::command]
-#[specta::specta]
-pub fn close_file(state: tauri::State<StateManager>, id: u32) -> Result<(), Error> {
+pub fn _close_file(state: tauri::State<StateManager>, id: u32) -> Result<()> {
     let mut file_manager = state
         .file_manager
         .try_lock()

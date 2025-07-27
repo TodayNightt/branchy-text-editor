@@ -3,7 +3,6 @@ use crate::{
     language::Lang,
 };
 
-use derivative::Derivative;
 use path_absolutize::*;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
@@ -16,8 +15,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-#[derive(Derivative)]
-#[derivative(Debug, PartialEq, Eq, Hash, PartialOrd, Clone, Ord, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Clone, Ord)]
 struct OpenedFile {
     name: String,
     language: Option<Lang>,
@@ -37,7 +35,7 @@ impl OpenedFile {
             .extension()
             .unwrap_or(OsStr::new("unknown"))
             .to_str()
-            .ok_or_else(|| PathError::ToStringError)
+            .ok_or(PathError::ToStringError)
             .map_err(|err| FileError::CreateFileError(err.to_string()))?;
 
         let lang = Lang::check_lang(file_extension);
@@ -81,8 +79,8 @@ impl OpenedFile {
     }
 
     fn save(&self) -> Result<(), FileError> {
-        Ok(fs::write(&self.path, &self.source_code)
-            .map_err(|_err| FileError::SavingFileError(self.name.clone()))?)
+        fs::write(&self.path, &self.source_code)
+            .map_err(|_err| FileError::SavingFileError(self.name.clone()))
     }
 
     fn update_source_code(&mut self, source_code: &Vec<u8>) {
@@ -92,13 +90,13 @@ impl OpenedFile {
 
 #[derive(Debug, Default)]
 pub struct FileManager {
-    files: Box<HashMap<u32, Arc<Mutex<OpenedFile>>>>,
+    files: HashMap<u32, Arc<Mutex<OpenedFile>>>,
 }
 
 impl FileManager {
     pub fn new() -> Self {
         Self {
-            files: Box::default(),
+            files: HashMap::default(),
         }
     }
 
@@ -107,7 +105,7 @@ impl FileManager {
     }
 
     pub fn close_file(&mut self, id: &u32) {
-        self.files.as_mut().remove_entry(id);
+        self.files.remove_entry(id);
     }
 
     pub fn get_file_language(&self, id: &u32) -> Result<Option<Lang>, Error> {
@@ -152,23 +150,21 @@ impl FileManager {
     pub fn load_file(&mut self, path: impl Into<String>) -> Result<(u32, bool), Error> {
         let file = OpenedFile::new(path.into())?;
         let same_name_exist = self._search_same_name_exist(&file.name())?;
-        let id = rand::thread_rng().next_u32();
-        let files_list = self.files.as_mut();
-        files_list.insert(id, Arc::new(Mutex::new(file)));
+        let id = rand::rng().next_u32();
+        self.files.insert(id, Arc::new(Mutex::new(file)));
         Ok((id, same_name_exist))
     }
 
     fn _get_file(&self, id: &u32) -> Result<Arc<Mutex<OpenedFile>>, NotFoundError> {
         Ok(self
             .files
-            .get(&id)
-            .ok_or_else(|| NotFoundError::FileNotFoundError(*id))?
+            .get(id)
+            .ok_or(NotFoundError::FileNotFoundError(*id))?
             .clone())
     }
 
     fn _search_same_name_exist(&self, name: &String) -> Result<bool, Error> {
-        let files_list = self.files.as_ref();
-        for file in files_list.values() {
+        for file in self.files.values() {
             let file = file
                 .try_lock()
                 .map_err(|err| MutexLockError(err.to_string()))?;
@@ -181,7 +177,7 @@ impl FileManager {
 
     pub fn save_file(&self, id: &u32) -> Result<(), Error> {
         let file_mutex = self
-            ._get_file(&id)
+            ._get_file(id)
             .map_err(|err| FileError::SavingFileError(err.to_string()))?;
         let file = file_mutex
             .try_lock()
@@ -245,38 +241,35 @@ impl DirectoryItem {
     }
 }
 
-pub fn get_directory_items(dir: &PathBuf, recursion: u32) -> Result<Vec<DirectoryItem>, Error> {
+pub fn get_directory_items(dir: &Path, recursion: u32) -> Result<Vec<DirectoryItem>, Error> {
     let mut directory_item: Vec<DirectoryItem> = vec![];
     let entries = dir.read_dir()?;
 
-    for entry in entries {
-        if let Ok(entry) = entry {
-            if entry.file_type()?.is_file() {
-                directory_item.push(DirectoryItem::create_file(
-                    entry
-                        .file_name()
-                        .into_string()
-                        .map_err(|_err| PathError::ToStringError)?,
-                    entry.path().absolutize()?.to_path_buf(),
-                ))
-            } else if entry.file_type().unwrap().is_dir() && recursion > 0 {
-                let recursion = recursion - 1;
-                let item = get_directory_items(&entry.path(), recursion)?;
-                directory_item.push(DirectoryItem::create_directory(
-                    entry
-                        .file_name()
-                        .into_string()
-                        .map_err(|_err| PathError::ToStringError)?,
-                    entry.path().absolutize()?.to_path_buf(),
-                    item,
-                ));
-            }
+    for entry in entries.flatten() {
+        if entry.file_type()?.is_file() {
+            directory_item.push(DirectoryItem::create_file(
+                entry
+                    .file_name()
+                    .into_string()
+                    .map_err(|_err| PathError::ToStringError)?,
+                entry.path().absolutize()?.to_path_buf(),
+            ))
+        } else if entry.file_type().unwrap().is_dir() && recursion > 0 {
+            let recursion = recursion - 1;
+            let item = get_directory_items(&entry.path(), recursion)?;
+            directory_item.push(DirectoryItem::create_directory(
+                entry
+                    .file_name()
+                    .into_string()
+                    .map_err(|_err| PathError::ToStringError)?,
+                entry.path().absolutize()?.to_path_buf(),
+                item,
+            ));
         }
     }
     Ok(directory_item)
 }
 
 fn read_file(path: &Path) -> Result<Vec<u8>, FileError> {
-    Ok(fs::read(path)
-        .map_err(|_err| FileError::ReadFileError(path.to_str().unwrap().to_string()))?)
+    fs::read(path).map_err(|_err| FileError::ReadFileError(path.to_str().unwrap().to_string()))
 }

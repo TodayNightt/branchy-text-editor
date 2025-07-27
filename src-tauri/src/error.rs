@@ -1,11 +1,30 @@
 use serde::Serialize;
-use thiserror::Error;
+use std::fmt::Display;
 
 trait Format {
     fn kind(&self) -> String;
 }
 
-#[derive(Debug, Error, Serialize)]
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, specta::Type, Serialize)]
+pub enum Response<T> {
+    Success(T),
+    Error(String),
+}
+impl<T> From<Result<T>> for Response<T>
+where
+    T: Serialize,
+{
+    fn from(value: Result<T>) -> Self {
+        match value {
+            Ok(message) => Response::Success(message),
+            Err(err) => Response::Error(err.to_string()),
+        }
+    }
+}
+
+#[derive(Debug, thiserror::Error, Serialize, specta::Type)]
 pub enum PathError {
     #[error("Could not convert OsString to String")]
     ToStringError,
@@ -13,7 +32,7 @@ pub enum PathError {
     PathNotFoundError,
 }
 
-#[derive(Debug, Error, Serialize)]
+#[derive(Debug, thiserror::Error, Serialize, specta::Type)]
 pub enum FileError {
     #[error("Could not save the file {0}")]
     SavingFileError(String),
@@ -29,7 +48,7 @@ pub enum FileError {
     InvalidUtf8StringError(u32),
 }
 
-#[derive(Debug, Error, Serialize)]
+#[derive(Debug, thiserror::Error, Serialize, specta::Type)]
 pub enum NotFoundError {
     #[error("Tree not found for id : {0}")]
     TreeNotFoundError(u32),
@@ -41,7 +60,7 @@ pub enum NotFoundError {
     FileNotFoundError(u32),
 }
 
-#[derive(Debug, Error, Serialize)]
+#[derive(Debug, thiserror::Error, Serialize, specta::Type)]
 pub enum SerdeError {
     #[error("Could not serialize error : {0}")]
     SerializeError(String),
@@ -49,11 +68,11 @@ pub enum SerdeError {
     DerializeError(String),
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error, specta::Type, Serialize)]
 #[error("MutexLockError : {0}")]
 pub struct MutexLockError(pub String);
 
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("FileError : {0}")]
     FileError(#[from] FileError),
@@ -118,28 +137,6 @@ impl Format for SerdeError {
             Self::SerializeError(_) => "SerdeError::SerializeError".to_string(),
             Self::DerializeError(_) => "SerdeError::DerializeError".to_string(),
         }
-    }
-}
-
-impl Serialize for Error {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let (kind, message) = match self {
-            Error::FileError(err) => (err.kind(), err.to_string()),
-            Error::NotFoundError(err) => (err.kind(), err.to_string()),
-            Error::PathError(err) => (err.kind(), err.to_string()),
-            Error::IOError(err) => (err.kind().to_string(), err.to_string()),
-            Error::MutexLockError(err) => (err.kind(), err.to_string()),
-            Error::SerdeError(err) => (err.kind(), err.to_string()),
-        };
-
-        let response = ResponseError {
-            kind: kind.to_string(),
-            message,
-        };
-        response.serialize(serializer)
     }
 }
 #[derive(Debug, Serialize)]

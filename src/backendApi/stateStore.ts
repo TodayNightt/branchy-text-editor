@@ -2,18 +2,13 @@ import { createStore } from "solid-js/store";
 import {
   FileSystemInfo,
   OpenFile,
-  getFileSystemInfo,
-  openFile,
-  closeFile,
-  reset,
-  getEditorConfig,
+    commands,
   Theme,
   LanguageTheme,
   EditorTheme,
-  Lang,
-  getCurrentlySupportedLanguage,
+  Lang
 } from "./bindings";
-import { catchIfAny } from "./invocation";
+import { catchResponse,catchIfAny } from "./invocation";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 
 type EditorConfig = {
@@ -46,7 +41,7 @@ const [store, setStore] = createStore<Store>({
 });
 
 export const invokeChangeDir = async (dir: string | null) => {
-  const files = await catchIfAny(getFileSystemInfo(dir));
+  const files = await catchResponse(commands.getFileSystemInfo(dir));
   if (files) {
     setStore("fileSystem", files);
   }
@@ -58,7 +53,7 @@ export const invokeOpenFile = async (path: string) => {
     setStore("selectedFile", exist.fileInfo.path);
     return;
   }
-  const file = await catchIfAny(openFile(path));
+  const file = await catchResponse(commands.openFile(path));
   if (file) {
     setStore("openedFile", (prev) => [
       ...prev,
@@ -81,7 +76,7 @@ export const invokeCloseFile = async (id: number) => {
 
   if (item) {
     item.editor?.dispose();
-    await catchIfAny(closeFile(id));
+    await catchResponse(commands.closeFile(id));
     setStore("openedFile", (prev) =>
       prev.filter((item) => item.fileInfo.id !== id)
     );
@@ -91,12 +86,12 @@ export const invokeCloseFile = async (id: number) => {
 };
 
 export const invokeReset = async () => {
-  await catchIfAny(reset());
+  await catchResponse(commands.reset());
   setStore("openedFile", []);
 };
 
 export const invokeGetEditorConfig = async () => {
-  let editorConfig = await catchIfAny(getEditorConfig());
+  let editorConfig = await catchResponse(commands.getEditorConfig());
   let languageTheme = editorConfig?.[0];
   let editorTheme = editorConfig?.[1];
   setStore("editorConfig", { editorTheme, languageTheme });
@@ -114,7 +109,7 @@ export const getLanguageThemeIfAnyElseDefault = (language: string): Theme => {
 };
 
 export const invokeGetCurrentlySupportedLanguage = async () => {
-  const res = await catchIfAny(getCurrentlySupportedLanguage());
+  const res = await catchIfAny(commands.getCurrentlySupportedLanguage());
   if (res) setStore("supportedLanguage", res);
 };
 

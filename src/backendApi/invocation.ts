@@ -1,13 +1,8 @@
 import {
   ChangesRange,
-  handleFileChanges,
-  saveFile,
-  getSourceCodeIfAny,
-  Lang,
-  setHighlights,
-  SemanticLegend,
-  getTokensLegend,
-  RangePoint,
+  commands, Lang,
+    Response,
+  RangePoint, SemanticLegend,
 } from "./bindings";
 import { showToast } from "../component/notification_toast/toast";
 
@@ -26,20 +21,37 @@ export async function catchIfAny<T>(promise: Promise<T>): Promise<T | null> {
   return null;
 }
 
+export async function catchResponse<T>(promise: Promise<Response<T>>): Promise<T | null> {
+    try {
+        const result = await promise;
+        if (checkIfError(result)) {
+        throw (result as { Error: string }).Error;
+        }
+        return (result as { Success: T }).Success;
+    } catch (error) {
+        showToast(error);
+    }
+    return null;
+}
+
+export function checkIfError<T>(result : Response<T>) :result is { Error: string } {
+  return (result as  { Error : string}).Error !== undefined;
+}
+
 export const invokeHandleFileChanges = async (
   id: number,
   cr: ChangesRange | null,
   text: string
 ) => {
-  await catchIfAny(handleFileChanges(id, text, cr));
+  await catchResponse(commands.handleFileChanges(id, text, cr));
 };
 
 export const invokeSaveFile = async (id: number) => {
-  await catchIfAny(saveFile(id));
+  await catchResponse(commands.saveFile(id));
 };
 
 export const invokeGetSourceCode = async (id: number): Promise<string> => {
-  const code = await catchIfAny(getSourceCodeIfAny(id));
+  const code = await catchResponse(commands.getSourceCodeIfAny(id));
   if (code) return code;
   return "";
 };
@@ -47,7 +59,7 @@ export const invokeGetSourceCode = async (id: number): Promise<string> => {
 export const invokeGetTokensLegend = async (
   lang: Lang
 ): Promise<SemanticLegend | null> => {
-  const legend = await catchIfAny(getTokensLegend(lang));
+  const legend = await catchResponse(commands.getTokensLegend(lang));
   if (legend) return legend;
   return null;
 };
@@ -57,7 +69,7 @@ export const invokeHighlights = async (
   ranged_source_code: string,
   range: RangePoint
 ): Promise<number[]> => {
-  const data = await catchIfAny(setHighlights(id, ranged_source_code, range));
+  const data = await catchResponse(commands.setHighlights(id, ranged_source_code, range));
   if (data) return data;
   return [];
 };

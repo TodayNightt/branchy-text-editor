@@ -1,9 +1,8 @@
 use std::path::PathBuf;
 
+use crate::{files_api::DirectoryItem, language::Lang};
 use serde::{Deserialize, Serialize};
 use specta::Type;
-
-use crate::{files_api::DirectoryItem, language::Lang};
 
 #[derive(Debug, Serialize, Deserialize, Type)]
 pub struct FileSystemInfo {

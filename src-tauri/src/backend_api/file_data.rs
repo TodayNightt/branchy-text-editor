@@ -1,15 +1,13 @@
 use crate::{
-    error::{Error, FileError, MutexLockError},
-    treesitter_backend::{highlighter::MonacoHighlights, parser::ChangesRange, query::RangePoint},
     StateManager,
+    error::{Error, FileError, MutexLockError, Result},
+    treesitter_backend::{highlighter::MonacoHighlights, parser::ChangesRange, query::RangePoint},
 };
 
-#[tauri::command]
-#[specta::specta]
-pub fn get_source_code_if_any(
+pub fn _get_source_code_if_any(
     state: tauri::State<StateManager>,
     id: u32,
-) -> Result<Option<String>, Error> {
+) -> Result<String> {
     let file_manager = state
         .file_manager
         .try_lock()
@@ -21,24 +19,20 @@ pub fn get_source_code_if_any(
 
     let source_code = file_manager.read_source_code_in_bytes(&id)?;
     let file_language = file_manager.get_file_language(&id)?;
-    if file_language.is_some() {
-        if parser_helper.parser_exist(&file_language.clone().unwrap()) {
-            parser_helper.append_tree(&id, file_language.clone())?;
-            parser_helper.parse(&id, &file_language.unwrap(), &source_code)?;
-        }
+    if file_language.is_some() && parser_helper.parser_exist(&file_language.clone().unwrap()) {
+        parser_helper.append_tree(&id, file_language.clone())?;
+        parser_helper.parse(&id, &file_language.unwrap(), &source_code)?;
     }
 
     match source_code.len() {
-        s if s > 0 => Ok(Some(
+        s if s > 0 => Ok(
             String::from_utf8(source_code).map_err(|_err| FileError::InvalidUtf8StringError(id))?,
-        )),
-        _ => Ok(None),
+        ),
+        _ => Ok("".to_string()),
     }
 }
 
-#[tauri::command]
-#[specta::specta]
-pub fn reset(state: tauri::State<StateManager>) -> Result<(), Error> {
+pub fn _reset(state: tauri::State<StateManager>) -> Result<()> {
     let mut file_manager = state
         .file_manager
         .try_lock()
@@ -46,25 +40,20 @@ pub fn reset(state: tauri::State<StateManager>) -> Result<(), Error> {
     file_manager.clear();
     Ok(())
 }
-
-#[tauri::command]
-#[specta::specta]
-pub fn save_file(state: tauri::State<StateManager>, id: u32) -> Result<(), Error> {
+pub fn _save_file(state: tauri::State<StateManager>, id: u32) -> Result<()> {
     let file_manager = state
         .file_manager
         .try_lock()
         .map_err(|err| MutexLockError(err.to_string()))?;
-    Ok(file_manager.save_file(&id)?)
+    file_manager.save_file(&id)
 }
 
-#[tauri::command]
-#[specta::specta]
-pub fn handle_file_changes(
+pub fn _handle_file_changes(
     state: tauri::State<StateManager>,
     id: u32,
     source_code: String,
     range: Option<ChangesRange>,
-) -> Result<(), Error> {
+) -> Result<()> {
     let file_manager = state
         .file_manager
         .try_lock()
@@ -77,24 +66,20 @@ pub fn handle_file_changes(
     let source_code_in_bytes = source_code.as_bytes().to_vec();
     file_manager.update_source_code_for_file(&id, &source_code_in_bytes)?;
     let file_language = file_manager.get_file_language(&id)?;
-    if file_language.is_some() {
-        if parser_helper.parser_exist(&file_language.clone().unwrap()) {
-            parser_helper.update_tree(&id, range)?;
-            parser_helper.parse(&id, &file_language.unwrap(), &source_code_in_bytes)?;
-        }
+    if file_language.is_some() && parser_helper.parser_exist(&file_language.clone().unwrap()) {
+        parser_helper.update_tree(&id, range)?;
+        parser_helper.parse(&id, &file_language.unwrap(), &source_code_in_bytes)?;
     }
 
     Ok(())
 }
 
-#[tauri::command]
-#[specta::specta]
-pub fn set_highlights(
+pub fn _set_highlights(
     state: tauri::State<StateManager>,
     id: u32,
     ranged_source_code: String,
     range: RangePoint,
-) -> Result<Vec<u32>, Error> {
+) -> Result<Vec<u32>> {
     let file_manager = state
         .file_manager
         .try_lock()

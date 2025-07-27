@@ -1,5 +1,5 @@
 import { Button, DropdownMenu } from "@kobalte/core";
-import { appWindow } from "@tauri-apps/api/window";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Component, JSX } from "solid-js";
 // @ts-ignore
 import styles from "./style.module.css";
@@ -12,13 +12,14 @@ import {
   invokeOpenFile,
   invokeReset,
 } from "../../backendApi/stateStore";
-import { open } from "@tauri-apps/api/dialog";
+import { open } from "@tauri-apps/plugin-dialog";
 import About from "./component/about/about";
 import {
   BiRegularArrowToRight,
   BiSolidFileBlank,
   BiSolidNote,
 } from "solid-icons/bi";
+const appWindow = getCurrentWebviewWindow()
 
 const Menu: Component = () => {
   type ButtonMouseEvent = JSX.EventHandler<HTMLDivElement, MouseEvent>;
@@ -34,7 +35,7 @@ const Menu: Component = () => {
     )) as string;
 
     if (path) {
-      invokeChangeDir(path);
+      await invokeChangeDir(path);
     }
   };
 
@@ -46,7 +47,7 @@ const Menu: Component = () => {
       })
     )) as string;
     if (path) {
-      invokeOpenFile(path);
+      await invokeOpenFile(path);
     }
   };
   return (
@@ -124,9 +125,9 @@ const Menu: Component = () => {
           onClick={async () => {
             const isMaximize = await catchIfAny(appWindow.isMaximized());
             if (isMaximize) {
-              appWindow.unmaximize();
+              await appWindow.unmaximize();
             } else {
-              appWindow.maximize();
+              await appWindow.maximize();
             }
           }}
         >
